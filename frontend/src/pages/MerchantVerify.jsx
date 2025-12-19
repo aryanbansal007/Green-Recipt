@@ -42,15 +42,29 @@ const MerchantVerify = () => {
     setInfo('');
 
     try {
-      const { data } = await verifyOtpCode({ email, role: 'merchant', code });
-      setSession({ token: data.token, role: data.role });
-      setInfo('Business verified! Redirecting...');
-      navigate('/merchant-dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Verification failed.');
-    } finally {
-      setLoading(false);
+    // 🔗 CONNECT TO BACKEND: VERIFY OTP
+    const response = await fetch('http://localhost:5001/api/auth/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        code: code,
+        role: 'merchant'
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("Verification Successful! Please log in.");
+      navigate('/merchant-login');
+    } else {
+      alert(data.message || "Invalid Code. Try again.");
     }
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Could not verify code.");
+  }
   };
 
   const handleResend = async () => {
