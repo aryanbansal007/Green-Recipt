@@ -1,28 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { requestOtp, setSession, verifyOtpCode } from '../services/api.js';
 
 const CustomerVerify = () => {
   const navigate = useNavigate();
-  // We can get the email passed from the previous page to show it here
   const location = useLocation();
-  const email = location.state?.email || "your email";
+  const email = location.state?.email || "";
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  
+  // ⏱️ TIMER STATES
+  const [timer, setTimer] = useState(30); 
   const [resending, setResending] = useState(false);
+  
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
 
-  // Handle typing in the 6 boxes
+  // 1. CLOCK LOGIC: Decrement timer every second
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
   const handleChange = (element, index) => {
     if (isNaN(element.value)) return false;
-
     const newOtp = [...otp];
     newOtp[index] = element.value;
     setOtp(newOtp);
-
-    // Auto-focus next input
     if (element.nextSibling && element.value) {
       element.nextSibling.focus();
     }
@@ -35,40 +44,68 @@ const CustomerVerify = () => {
       setError("Please enter a valid 6-digit code.");
       return;
     }
-    if (!email) {
-      setError("Missing email. Go back to sign up and try again.");
-      return;
-    }
-
     setLoading(true);
     setError('');
     setInfo('');
 
     try {
-      const { data } = await verifyOtpCode({ email, role: 'customer', code });
-      setSession({ token: data.token, role: data.role });
-      setInfo('Email verified! Redirecting...');
-      navigate('/customer-dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Verification failed.');
+      // 🔗 CONNECT TO BACKEND: VERIFY
+      const response = await fetch('http://127.0.0.1:5001/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          code: code,
+          role: 'customer'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Verification Successful! Please log in.");
+        navigate('/customer-login');
+      } else {
+        alert(data.message || "Invalid Code. Try again.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Could not verify code. Is Backend running?");
     } finally {
       setLoading(false);
     }
   };
 
+  // 2. RESEND LOGIC
   const handleResend = async () => {
-    if (!email) {
-      setError('Missing email. Go back to sign up and try again.');
-      return;
-    }
+    if (timer > 0) return; // Prevent clicking if time is left
+    
     setResending(true);
     setError('');
     setInfo('');
+
     try {
-      await requestOtp({ email, role: 'customer' });
-      setInfo('New code sent to your email.');
+      // 🔗 CONNECT TO BACKEND: REQUEST NEW OTP
+      const response = await fetch('http://127.0.0.1:5001/api/auth/otp/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: email, 
+          role: 'customer' 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setInfo('New code sent successfully!');
+        setTimer(30); // 🔄 Reset clock to 30s
+      } else {
+        setError(data.message || 'Could not resend code.');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not resend code.');
+      console.error(err);
+      setError('Network error. Check console.');
     } finally {
       setResending(false);
     }
@@ -77,7 +114,6 @@ const CustomerVerify = () => {
   return (
     <div className="bg-gradient-to-br from-slate-50 via-white to-green-50 min-h-screen flex items-center justify-center p-4 font-sans text-slate-900">
       <div className="w-full max-w-[420px]">
-        
         <div className="bg-white rounded-[2rem] shadow-2xl shadow-slate-200/60 p-8 md:p-10 border border-slate-100 relative overflow-hidden text-center">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-green-300"></div>
 
@@ -89,8 +125,9 @@ const CustomerVerify = () => {
           <p className="text-slate-500 text-sm mb-4">
             We sent a code to <span className="font-bold text-slate-700">{email}</span>.
           </p>
-          {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
-          {info && <div className="text-sm text-emerald-700 mb-4">{info}</div>}
+          
+          {error && <div className="text-sm text-red-600 mb-4 bg-red-50 p-2 rounded">{error}</div>}
+          {info && <div className="text-sm text-emerald-700 mb-4 bg-green-50 p-2 rounded">{info}</div>}
 
           <form onSubmit={handleVerify}>
             <div className="flex justify-center gap-2 mb-8">
@@ -107,15 +144,27 @@ const CustomerVerify = () => {
               ))}
             </div>
 
-            <button type="submit" disabled={loading} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:-translate-y-0.5 transition-all disabled:opacity-60">
+            <button type="submit" disabled={loading} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
               {loading ? 'Verifying...' : 'Verify Account'}
             </button>
           </form>
 
           <div className="mt-8 text-sm text-slate-500">
             Didn't receive code? <br />
-            <button type="button" onClick={handleResend} disabled={resending} className="font-bold text-emerald-600 hover:underline mt-2 disabled:opacity-60">
-              {resending ? 'Sending...' : 'Resend Code'}
+            
+            {/* 3. UPDATED RESEND BUTTON */}
+            <button 
+              type="button" 
+              onClick={handleResend} 
+              disabled={timer > 0 || resending} 
+              className="mt-2 font-bold text-emerald-600 hover:underline disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed transition-colors"
+            >
+              {resending 
+                ? 'Sending...' 
+                : timer > 0 
+                  ? `Resend Code in ${timer}s` 
+                  : 'Resend Code'
+              }
             </button>
           </div>
         </div>
