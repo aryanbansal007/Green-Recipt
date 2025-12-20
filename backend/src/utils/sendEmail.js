@@ -19,7 +19,7 @@ export const sendVerificationEmail = async (email, link) => {
       <a href="${link}" style="padding:10px 20px;background:#16A34A;color:white;border-radius:6px;text-decoration:none;">
         Verify Email
       </a>
-      <p>This link will expire in 24 hours.</p>
+      <p>This link will expire in 10 minutes.</p>
     `,
   });
 };
