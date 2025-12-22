@@ -128,7 +128,7 @@ const ReceiptCard = ({ data, onDelete, onUpdate }) => {
                       <Smartphone size={16} /> Pay UPI
                     </button>
                     <button onClick={() => handleFakePay('Bank')} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors">
-                      <CreditCard size={16} /> Pay Bank
+                      <CreditCard size={16} /> Pay Cash
                     </button>
                   </div>
                 )}
