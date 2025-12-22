@@ -57,5 +57,7 @@ export const fetchCustomerAnalytics = () => api.get("/analytics/customer");
 export const fetchMerchantAnalytics = () => api.get("/analytics/merchant");
 export const fetchProfile = () => api.get("/auth/me");
 export const updateProfile = (payload) => api.patch("/auth/me", payload);
+export const changePassword = (payload) => api.post("/auth/change-password", payload);
+export const deleteAccount = () => api.delete("/auth/me");
 
 export default api;

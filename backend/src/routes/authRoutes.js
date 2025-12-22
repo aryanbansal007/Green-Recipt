@@ -11,6 +11,8 @@ import {
   	resetPassword,
 	getProfile,
 	updateProfile,
+	changePassword,
+	deleteAccount,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { validate } from "../middleware/validate.js";
@@ -23,6 +25,7 @@ import {
 	forgotPasswordSchema,
 	resetPasswordSchema,
 	updateProfileSchema,
+	changePasswordSchema,
 } from "../validators/authSchemas.js";
 
 const router = express.Router();
@@ -53,5 +56,7 @@ router.post('/forgot-password', otpLimiter, validate(forgotPasswordSchema), forg
 router.post('/reset-password', otpLimiter, validate(resetPasswordSchema), resetPassword);
 router.get('/me', protect, getProfile);
 router.patch('/me', protect, validate(updateProfileSchema), updateProfile);
+router.post('/change-password', protect, validate(changePasswordSchema), changePassword);
+router.delete('/me', protect, deleteAccount);
 
 export default router;

@@ -284,6 +284,8 @@ export const getProfile = async (req, res) => {
           phone: account.phone || null,
           address: account.address || null,
           isVerified: account.isVerified,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
         }
       : {
           id: account._id,
@@ -291,7 +293,10 @@ export const getProfile = async (req, res) => {
           name: account.name,
           email: account.email,
           phone: account.phone || null,
+          address: account.address || null,
           isVerified: account.isVerified,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
         };
 
     res.json(payload);
@@ -441,5 +446,55 @@ export const verifyOtp = async (req, res) => {
   } catch (error) {
     console.error("verifyOtp error", error);
     res.status(500).json({ message: "Failed to verify code" });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    const Model = req.user.role === "merchant" ? Merchant : User;
+    const account = await Model.findById(req.user.id);
+
+    if (!account) {
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    // Verify current password
+    const isMatch = await account.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // Update password (pre-save hook will hash it)
+    account.password = newPassword;
+    await account.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("changePassword error", error);
+    res.status(500).json({ message: "Failed to change password" });
+  }
+};
+
+export const deleteAccount = async (req, res) => {
+  try {
+    const Model = req.user.role === "merchant" ? Merchant : User;
+    
+    // Delete the account
+    const result = await Model.findByIdAndDelete(req.user.id);
+
+    if (!result) {
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    // Optionally: Delete associated receipts (for data cleanup)
+    // You might want to keep receipts for audit purposes, or anonymize them
+    // await Receipt.deleteMany({ userId: req.user.id });
+
+    res.json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("deleteAccount error", error);
+    res.status(500).json({ message: "Failed to delete account" });
   }
 };

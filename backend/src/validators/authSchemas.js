@@ -67,25 +67,58 @@ export const resetPasswordSchema = {
 	}),
 };
 
-const phoneSchema = z.string().trim().min(7).max(20).optional();
+export const changePasswordSchema = {
+	body: z.object({
+		currentPassword: z.string().min(1, "Current password is required"),
+		newPassword: passwordSchema,
+	}),
+};
+
+const phoneSchema = z
+	.string()
+	.trim()
+	.min(7, "Phone must be at least 7 digits")
+	.max(20, "Phone must be at most 20 digits")
+	.optional();
+
+const optionalString = (max) =>
+	z
+		.string()
+		.trim()
+		.max(max)
+		.optional()
+		.transform((v) => (v === "" ? undefined : v));
+
 const addressSchema = z
 	.object({
-		line1: z.string().trim().max(120).optional(),
-		line2: z.string().trim().max(120).optional(),
-		city: z.string().trim().max(80).optional(),
-		state: z.string().trim().max(80).optional(),
-		postalCode: z.string().trim().max(20).optional(),
-		country: z.string().trim().max(80).optional(),
+		line1: optionalString(120),
+		line2: optionalString(120),
+		city: optionalString(80),
+		state: optionalString(80),
+		postalCode: optionalString(20),
+		country: optionalString(80),
 	})
-	.partial();
+	.partial()
+	.transform((addr) => {
+		const cleaned = Object.fromEntries(
+			Object.entries(addr || {}).filter(([, v]) => v !== undefined && v !== null && v !== "")
+		);
+		return Object.keys(cleaned).length ? cleaned : undefined;
+	});
 
 export const updateProfileSchema = {
 	body: z
 		.object({
-			name: z.string().trim().min(1).max(120).optional(),
-			email: emailSchema.optional(),
+			name: optionalString(120),
+			email: emailSchema.optional().transform((v) => (v === "" ? undefined : v)),
 			phone: phoneSchema,
 			address: addressSchema.optional(),
+		})
+		.transform((data) => {
+			const cleaned = Object.fromEntries(
+				Object.entries(data).filter(([, v]) => v !== undefined && v !== null && v !== "")
+			);
+			return cleaned;
 		})
 		.refine((data) => Object.keys(data).length > 0, {
 			message: "At least one field must be provided",
