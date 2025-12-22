@@ -5,17 +5,38 @@ import {
   TrendingUp, Wallet, QrCode, UploadCloud, X, Save,
   Image as ImageIcon, Calendar, PieChart, Store, CheckCircle
 } from 'lucide-react';
+import { fetchCustomerReceipts } from '../../services/api';
 
 const CustomerHome = ({ onNavigate, onScanTrigger }) => {
   
   // 🟢 STATE
-  const [receipts, setReceipts] = useState(() => {
-    const saved = localStorage.getItem('customerReceipts');
-    return saved ? JSON.parse(saved) : MOCK_RECEIPTS;
-  });
+  const [receipts, setReceipts] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('customerReceipts', JSON.stringify(receipts));
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data } = await fetchCustomerReceipts();
+        if (mounted) {
+          setReceipts(data || []);
+          localStorage.setItem('customerReceipts', JSON.stringify(data || []));
+        }
+      } catch (error) {
+        const cached = localStorage.getItem('customerReceipts');
+        const fallback = cached ? JSON.parse(cached) : MOCK_RECEIPTS;
+        if (mounted) setReceipts(fallback);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (receipts?.length) {
+      localStorage.setItem('customerReceipts', JSON.stringify(receipts));
+    }
   }, [receipts]);
   
   const totalSpent = receipts

@@ -1,29 +1,19 @@
 import React, { useState } from 'react';
-import { QrCode, Image, X, Calendar, Receipt, Trash2, Edit2, Save, EyeOff, CheckCircle } from 'lucide-react';
+import { QrCode, Image, X, Calendar, Receipt, Trash2, CreditCard, Smartphone, EyeOff, CheckCircle, Check } from 'lucide-react';
 
 const ReceiptCard = ({ data, onDelete, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-
-  // Edit State
-  const [editMerchant, setEditMerchant] = useState(data.merchant);
-  const [editAmount, setEditAmount] = useState(data.amount);
-  const [editDate, setEditDate] = useState(data.date);
-  const [editExclude, setEditExclude] = useState(data.excludeFromStats);
+  const [paymentStatus, setPaymentStatus] = useState(
+    data.status === 'completed' ? 'Paid' : null
+  );
 
   const isQR = data.type === 'qr';
 
-  // Save Edits
-  const handleSaveEdit = () => {
-    const updated = {
-        ...data,
-        merchant: editMerchant,
-        amount: parseFloat(editAmount),
-        date: editDate,
-        excludeFromStats: editExclude
-    };
+  // Fake payment; just reflect locally and mark as completed
+  const handleFakePay = (methodLabel) => {
+    const updated = { ...data, status: 'completed' };
     onUpdate(updated);
-    setIsEditing(false);
+    setPaymentStatus(methodLabel);
   };
 
   return (
@@ -66,8 +56,8 @@ const ReceiptCard = ({ data, onDelete, onUpdate }) => {
             
             {/* Modal Header */}
             <div className="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
-              <span className="text-sm font-bold flex items-center gap-2"><Receipt size={16}/> {isEditing ? 'Edit Receipt' : 'Receipt Detail'}</span>
-              <button onClick={(e) => { e.stopPropagation(); setIsOpen(false); setIsEditing(false); }} className="p-1.5 bg-white/10 rounded-full hover:bg-white/20"><X size={16}/></button>
+              <span className="text-sm font-bold flex items-center gap-2"><Receipt size={16}/> Receipt Detail</span>
+              <button onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} className="p-1.5 bg-white/10 rounded-full hover:bg-white/20"><X size={16}/></button>
             </div>
 
             {/* Content */}
@@ -75,37 +65,31 @@ const ReceiptCard = ({ data, onDelete, onUpdate }) => {
                
                {/* 1. Editable Header Info */}
                <div className="text-center border-b border-dashed border-slate-200 pb-4 mb-4">
-                  {isEditing ? (
-                      <div className="space-y-2">
-                          <input className="w-full text-center font-bold text-xl border-b border-slate-300 outline-none pb-1" value={editMerchant} onChange={e => setEditMerchant(e.target.value)} placeholder="Merchant Name" />
-                          <div className="flex justify-center items-center gap-2">
-                              <Calendar size={14} className="text-slate-400"/>
-                              <input type="date" className="text-xs text-slate-500 border rounded px-2 py-1" value={editDate} onChange={e => setEditDate(e.target.value)} />
-                          </div>
-                      </div>
-                  ) : (
-                      <>
-                        <h2 className="text-xl font-bold text-slate-800">{data.merchant}</h2>
-                        <p className="text-xs text-slate-400 mt-1">{data.date} at {data.time}</p>
-                      </>
-                  )}
+                  <>
+                    <h2 className="text-xl font-bold text-slate-800">{data.merchant}</h2>
+                    <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Calendar size={12}/> {data.date} at {data.time}</p>
+                  </>
                   
                   {isQR && <p className="text-[10px] text-emerald-600 font-bold uppercase mt-2 bg-emerald-50 inline-block px-2 py-1 rounded">Verified GreenReceipt</p>}
                   
-                  {!isEditing && data.excludeFromStats && (
+                    {data.excludeFromStats && (
                       <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 bg-slate-100 inline-block px-2 py-1 rounded flex items-center gap-1 mx-auto w-fit"><EyeOff size={10}/> Excluded from Stats</p>
-                  )}
+                    )}
                </div>
 
                {/* 2. Items or Image */}
                {isQR ? (
                  <div className="space-y-3 mb-4">
-                   {data.items && data.items.map((item, i) => (
-                     <div key={i} className="flex justify-between text-sm">
-                       <span className="text-slate-600">{item.qty} x {item.name}</span>
-                       <span className="font-bold text-slate-800">₹{item.price}</span>
-                     </div>
-                   ))}
+                   {data.items && data.items.map((item, i) => {
+                     const qty = item.qty || item.quantity || 1;
+                     const price = item.price || item.unitPrice || 0;
+                     return (
+                       <div key={i} className="flex justify-between text-sm">
+                         <span className="text-slate-600">{qty} x {item.name}</span>
+                         <span className="font-bold text-slate-800">₹{price * qty}</span>
+                       </div>
+                     );
+                   })}
                  </div>
                ) : (
                  <div className="mb-4">
@@ -115,52 +99,38 @@ const ReceiptCard = ({ data, onDelete, onUpdate }) => {
                  </div>
                )}
 
-               {/* 3. Editable Total */}
+               {/* 3. Amount */}
                <div className="border-t border-dashed border-slate-200 pt-4 flex justify-between items-center mb-6">
                  <span className="font-bold text-slate-500">TOTAL PAID</span>
-                 {isEditing ? (
-                     <div className="flex items-center gap-1">
-                         <span className="font-bold text-slate-400">₹</span>
-                         <input type="number" className="w-24 text-right font-bold text-2xl border-b border-slate-300 outline-none" value={editAmount} onChange={e => setEditAmount(e.target.value)} />
-                     </div>
-                 ) : (
-                     <span className="text-2xl font-bold text-slate-800">₹{data.amount}</span>
-                 )}
+                 <span className="text-2xl font-bold text-slate-800">₹{data.amount}</span>
                </div>
                
-               {/* 4. Edit Toggle: Exclude from Stats */}
-               {isEditing && (
-                   <div onClick={() => setEditExclude(!editExclude)} className={`p-3 rounded-lg border flex items-center gap-3 cursor-pointer mb-4 ${!editExclude ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${!editExclude ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'}`}>
-                            {!editExclude && <CheckCircle size={10} className="text-white" />}
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">Include in Analytics</span>
-                   </div>
-               )}
-
                <div className="text-center space-y-2">
                  <p className="text-[10px] text-slate-300 uppercase tracking-widest font-bold">Stored in GreenReceipt Vault</p>
+                 {paymentStatus && (
+                    <p className="text-xs text-emerald-600 font-bold flex items-center gap-1 justify-center"><Check size={14}/> Paid via {paymentStatus}</p>
+                 )}
                </div>
             </div>
 
             {/* Actions Footer */}
             <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center">
-                {!isEditing ? (
-                    <>
-                        <button onClick={() => onDelete(data.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
-                            <Trash2 size={16} /> Delete
-                        </button>
-                        <button onClick={() => { setIsEditing(true); setEditMerchant(data.merchant); setEditAmount(data.amount); setEditDate(data.date); setEditExclude(data.excludeFromStats || false); }} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors">
-                            <Edit2 size={16} /> Edit Details
-                        </button>
-                    </>
+                <button onClick={() => onDelete(data.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                    <Trash2 size={16} /> Delete
+                </button>
+                {data.status === 'completed' ? (
+                  <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs">
+                    <Check size={14}/> Payment Complete
+                  </div>
                 ) : (
-                    <>
-                         <button onClick={() => setIsEditing(false)} className="text-slate-400 text-xs font-bold hover:text-slate-600">Cancel</button>
-                         <button onClick={handleSaveEdit} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all">
-                            <Save size={16} /> Save Changes
-                        </button>
-                    </>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleFakePay('UPI')} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors">
+                      <Smartphone size={16} /> Pay UPI
+                    </button>
+                    <button onClick={() => handleFakePay('Bank')} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors">
+                      <CreditCard size={16} /> Pay Bank
+                    </button>
+                  </div>
                 )}
             </div>
           </div>

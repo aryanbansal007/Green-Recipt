@@ -8,6 +8,12 @@ const merchantSchema = new mongoose.Schema(
 			required: true,
 			trim: true,
 		},
+		merchantCode: {
+			type: String,
+			unique: true,
+			trim: true,
+			sparse: true,
+		},
 		email: {
 			type: String,
 			required: true,
@@ -19,6 +25,32 @@ const merchantSchema = new mongoose.Schema(
 			type: String,
 			required: true,
 			minlength: 6,
+		},
+		ownerName: {
+			type: String,
+			trim: true,
+		},
+		phone: {
+			type: String,
+			trim: true,
+		},
+		address: {
+			type: String,
+			trim: true,
+		},
+		receiptFooter: {
+			type: String,
+			trim: true,
+			default: "Thank you! Visit again.",
+		},
+		currency: {
+			type: String,
+			trim: true,
+			default: "INR",
+		},
+		logoUrl: {
+			type: String,
+			trim: true,
 		},
 		role: {
 			type: String,

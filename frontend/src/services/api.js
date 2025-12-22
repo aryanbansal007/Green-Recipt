@@ -49,6 +49,10 @@ export const resetPassword = (payload) => api.post("/auth/reset-password", paylo
 
 export const fetchCustomerReceipts = () => api.get("/receipts/customer");
 export const fetchMerchantReceipts = () => api.get("/receipts/merchant");
+export const createReceipt = (payload) => api.post("/receipts", payload);
+export const claimReceipt = (payload) => api.post("/receipts/claim", payload);
+export const markReceiptPaid = (id) => api.patch(`/receipts/${id}/mark-paid`);
+export const getReceiptById = (id) => api.get(`/receipts/${id}`);
 export const fetchCustomerAnalytics = () => api.get("/analytics/customer");
 export const fetchMerchantAnalytics = () => api.get("/analytics/merchant");
 

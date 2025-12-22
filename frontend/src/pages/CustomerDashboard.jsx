@@ -8,6 +8,7 @@ import CustomerInsights from '../components/customer/CustomerInsights';
 import CustomerProfile from '../components/customer/CustomerProfile';
 import CustomerNotifications from '../components/customer/CustomerNotifications';
 import { ScanLine, Bell, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { createReceipt, claimReceipt } from '../services/api';
 
 const CustomerDashboard = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -23,8 +24,7 @@ const CustomerDashboard = () => {
   };
 
   // 🧠 HANDLE REAL SCAN RESULT
-  // 🧠 HANDLE REAL SCAN RESULT
-  const handleScan = (rawText) => {
+  const handleScan = async (rawText) => {
     if (rawText && !scanResult) {
       try {
         // 1. Parse the text from QR
@@ -37,29 +37,57 @@ const CustomerDashboard = () => {
 
         // 🟢 FIX: TRANSLATE SHORT KEYS BACK TO FULL KEYS
         // The QR uses 'n', 'q', 'p' to save space. We must convert them back.
-        const fixedItems = (receiptData.items || []).map(item => ({
-            name: item.n || item.name, // If 'n' exists use it, otherwise keep 'name'
-            qty: item.q || item.qty,
-            price: item.p || item.price
-        }));
+        const fixedItems = (receiptData.items || []).map(item => {
+            const quantity = item.q || item.qty || item.quantity;
+            const unitPrice = item.p || item.price || item.unitPrice;
+            return {
+              name: item.n || item.name,
+              // Keep both shapes so UI and backend agree
+              quantity,
+              unitPrice,
+              qty: quantity,
+              price: unitPrice,
+            };
+        });
 
         // 3. Create Receipt Object with Fixed Items
         const newReceipt = {
             ...receiptData,
             id: receiptData.id || `GR-${Date.now()}`,
-            items: fixedItems, // 👈 Use the fixed items here
+            items: fixedItems,
             type: 'qr',
-            excludeFromStats: false
+            excludeFromStats: false,
         };
 
-        // 4. Save to LocalStorage
-        const existing = JSON.parse(localStorage.getItem('customerReceipts')) || [];
-        
-        // Check for duplicates
-        if (!existing.find(r => r.id === newReceipt.id)) {
+        // 4. Persist to backend (fallback to local on failure)
+        try {
+          const payload = {
+            merchantId: receiptData.merchantId,
+            merchantCode: receiptData.mid || receiptData.merchantCode,
+            items: fixedItems,
+            source: 'qr',
+            paymentMethod: 'upi',
+            transactionDate: receiptData.date || new Date().toISOString(),
+            total: receiptData.total,
+            note: receiptData.note,
+            footer: receiptData.footer,
+          };
+
+          const apiCall = receiptData.rid
+            ? claimReceipt({ receiptId: receiptData.rid })
+            : createReceipt(payload);
+
+          const { data } = await apiCall;
+          const existing = JSON.parse(localStorage.getItem('customerReceipts')) || [];
+          const merged = [data, ...existing.filter(r => r.id !== data.id && r._id !== data.id)];
+          localStorage.setItem('customerReceipts', JSON.stringify(merged));
+          window.dispatchEvent(new Event('customer-receipts-updated'));
+        } catch (apiError) {
+          const existing = JSON.parse(localStorage.getItem('customerReceipts')) || [];
+          if (!existing.find(r => r.id === newReceipt.id)) {
             localStorage.setItem('customerReceipts', JSON.stringify([newReceipt, ...existing]));
-        } else {
-             console.log("Duplicate receipt scanned");
+          }
+          window.dispatchEvent(new Event('customer-receipts-updated'));
         }
 
         // 5. Success UI

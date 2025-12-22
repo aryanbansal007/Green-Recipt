@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ShoppingBag, QrCode, X, Plus, Minus, Trash2, Search, Zap, CheckCircle } from 'lucide-react';
+import { createReceipt, markReceiptPaid } from '../../services/api';
 
 const MerchantBilling = ({ inventory }) => {
   // 🛒 Cart & UI State
@@ -74,9 +75,8 @@ const MerchantBilling = ({ inventory }) => {
   const removeFromCart = (itemId) => setCart(prev => prev.filter(item => item.id !== itemId));
 
   // 🚀 GENERATE QR
-  const handleGenerateQR = () => {
-    const billData = {
-      id: `GR-${Date.now().toString().slice(-6)}`, 
+  const handleGenerateQR = async () => {
+    const baseBill = {
       merchant: merchantProfile.shopName,
       mid: merchantProfile.merchantId,
       date: new Date().toISOString().split('T')[0], 
@@ -90,6 +90,30 @@ const MerchantBilling = ({ inventory }) => {
       footer: merchantProfile.receiptFooter || "Thank you!"
     };
 
+    let createdReceipt = null;
+    try {
+      const payload = {
+        items: cart.map(item => ({ name: item.name, unitPrice: item.price, quantity: item.quantity })),
+        source: 'qr',
+        paymentMethod: 'upi',
+        transactionDate: new Date().toISOString(),
+        total: cartTotal,
+        footer: merchantProfile.receiptFooter,
+        status: 'pending',
+      };
+      const { data } = await createReceipt(payload);
+      createdReceipt = data;
+      const currentSales = JSON.parse(localStorage.getItem('merchantSales')) || [];
+      localStorage.setItem('merchantSales', JSON.stringify([data, ...currentSales]));
+    } catch (err) {
+      // fall back to local-only
+      createdReceipt = { ...baseBill, id: `GR-${Date.now().toString().slice(-6)}`, status: 'pending' };
+      const currentSales = JSON.parse(localStorage.getItem('merchantSales')) || [];
+      localStorage.setItem('merchantSales', JSON.stringify([createdReceipt, ...currentSales]));
+    }
+
+    const receiptId = createdReceipt?.id || createdReceipt?._id || `GR-${Date.now().toString().slice(-6)}`;
+    const billData = { ...baseBill, id: receiptId, rid: receiptId };
     setGeneratedBill(billData);
     const jsonString = JSON.stringify(billData);
     const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(jsonString)}`;
@@ -98,31 +122,35 @@ const MerchantBilling = ({ inventory }) => {
   };
 
   // 💾 SAVE THE SALE (New Function)
-  const handlePaymentReceived = () => {
+  const handlePaymentReceived = async () => {
       if (!generatedBill) return;
 
-      // 1. Get existing sales
-      const currentSales = JSON.parse(localStorage.getItem('merchantSales')) || [];
+      const receiptId = generatedBill.rid || generatedBill.id;
 
-      // 2. Add new sale to history
-      const newSale = {
+      try {
+        if (receiptId) {
+          const { data } = await markReceiptPaid(receiptId);
+          const currentSales = JSON.parse(localStorage.getItem('merchantSales')) || [];
+          const merged = [data, ...currentSales.filter(r => r.id !== receiptId && r._id !== receiptId)];
+          localStorage.setItem('merchantSales', JSON.stringify(merged));
+          window.dispatchEvent(new Event('customer-receipts-updated'));
+        }
+      } catch (err) {
+        // fallback to local if API fails
+        const currentSales = JSON.parse(localStorage.getItem('merchantSales')) || [];
+        const newSale = {
           ...generatedBill,
+          total: cartTotal,
           status: 'completed',
-          paymentMethod: 'UPI' // Assuming UPI for QR
-      };
+          paymentMethod: 'upi'
+        };
+        const merged = [newSale, ...currentSales.filter(r => r.id !== receiptId)];
+        localStorage.setItem('merchantSales', JSON.stringify(merged));
+      }
 
-      // 3. Save to LocalStorage
-      localStorage.setItem('merchantSales', JSON.stringify([newSale, ...currentSales]));
-
-      // 4. Trigger Update in other components
-      window.dispatchEvent(new Event('merchantStorage'));
-
-      // 5. Reset UI
       setShowQr(false);
       setCart([]);
       setIsMobileCartOpen(false);
-      
-      // Optional: Show success alert or toast here
       alert("Payment Recorded! Sale saved to dashboard.");
   };
 

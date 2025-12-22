@@ -3,23 +3,27 @@ import mongoose from "mongoose";
 const itemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    price: { type: Number, required: true, min: 0 },
+    unitPrice: { type: Number, required: true, min: 0 },
     quantity: { type: Number, required: true, min: 1, default: 1 },
   },
   { _id: false }
 );
+
+itemSchema.virtual("lineTotal").get(function getLineTotal() {
+  return (this.unitPrice || 0) * (this.quantity || 0);
+});
 
 const receiptSchema = new mongoose.Schema(
   {
     merchantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Merchant",
-      required: true,
+      required: false,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     items: {
       type: [itemSchema],
@@ -30,14 +34,75 @@ const receiptSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    source: {
+      type: String,
+      enum: ["qr", "upload", "manual"],
+      default: "qr",
+    },
+    status: {
+      type: String,
+      enum: ["completed", "pending", "void"],
+      default: "completed",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["upi", "card", "cash", "other"],
+      default: "upi",
+    },
+    transactionDate: {
+      type: Date,
+      required: true,
+    },
+    currency: {
+      type: String,
+      default: "INR",
+      trim: true,
+    },
+    excludeFromStats: {
+      type: Boolean,
+      default: false,
+    },
+    imageUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    note: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    footer: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    merchantSnapshot: {
+      shopName: { type: String, trim: true },
+      merchantCode: { type: String, trim: true },
+      address: { type: String, trim: true },
+    },
+    customerSnapshot: {
+      name: { type: String, trim: true },
+      email: { type: String, trim: true },
+    },
     category: {
       type: String,
       trim: true,
       default: "general",
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+receiptSchema.index({ merchantId: 1, transactionDate: -1 });
+receiptSchema.index({ userId: 1, transactionDate: -1 });
+receiptSchema.index({ source: 1 });
+receiptSchema.index({ excludeFromStats: 1 });
 
 const Receipt = mongoose.model("Receipt", receiptSchema);
 

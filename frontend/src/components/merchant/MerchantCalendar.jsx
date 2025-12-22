@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar as CalendarIcon, X, Filter, ChevronDown, Check } from 'lucide-react';
-import { getMonthData, MONTH_NAMES } from '../../utils/mockData';
+import { fetchMerchantReceipts } from '../../services/api';
+import { MONTH_NAMES } from '../../utils/mockData';
 
 const MerchantCalendar = () => {
   // 🟢 STATE
@@ -8,6 +9,7 @@ const MerchantCalendar = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0 = Jan
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [monthData, setMonthData] = useState({});
+  const [receipts, setReceipts] = useState([]);
 
   // 🔽 DROPDOWN STATE
   const [openDropdown, setOpenDropdown] = useState(null); // 'month', 'year', or null
@@ -16,12 +18,48 @@ const MerchantCalendar = () => {
   // 🗓️ CONSTANTS
   const YEARS = [2024, 2025, 2026, 2027]; 
 
-  // 🔄 EFFECT: Load data
+  // 🔄 EFFECT: Load receipts from backend (fallback to local)
   useEffect(() => {
-    const data = getMonthData(selectedYear, selectedMonth);
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data } = await fetchMerchantReceipts();
+        if (mounted) {
+          setReceipts(data || []);
+          localStorage.setItem('merchantSales', JSON.stringify(data || []));
+        }
+      } catch (error) {
+        const saved = localStorage.getItem('merchantSales');
+        if (mounted && saved) setReceipts(JSON.parse(saved));
+      }
+    };
+    load();
+
+    const handleRefresh = () => load();
+    window.addEventListener('customer-receipts-updated', handleRefresh);
+    window.addEventListener('storage', handleRefresh);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('customer-receipts-updated', handleRefresh);
+      window.removeEventListener('storage', handleRefresh);
+    };
+  }, []);
+
+  // 🔄 EFFECT: Rebuild month data when receipts or month/year change
+  useEffect(() => {
+    const data = {};
+    receipts.forEach((r) => {
+      const dateKey = r.date || (r.transactionDate ? r.transactionDate.split('T')[0] : null);
+      if (!dateKey) return;
+      const [y, m] = dateKey.split('-');
+      if (Number(y) !== selectedYear || Number(m) !== selectedMonth + 1) return;
+      if (!data[dateKey]) data[dateKey] = [];
+      data[dateKey].push(r);
+    });
     setMonthData(data);
     setSelectedDateKey(null);
-  }, [selectedYear, selectedMonth]);
+  }, [receipts, selectedYear, selectedMonth]);
 
   // 🔄 EFFECT: Close dropdowns if clicking outside
   useEffect(() => {
@@ -39,8 +77,14 @@ const MerchantCalendar = () => {
   const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).getDay(); 
 
   // 📝 DERIVED DATA
-  const selectedDayBills = selectedDateKey ? (monthData[selectedDateKey] || []) : [];
-  const selectedDayTotal = selectedDayBills.reduce((a, b) => a + b.amount, 0);
+  const selectedDayBills = useMemo(
+    () => (selectedDateKey ? monthData[selectedDateKey] || [] : []),
+    [selectedDateKey, monthData]
+  );
+  const selectedDayTotal = selectedDayBills.reduce(
+    (a, b) => a + (b.total ?? b.amount ?? 0),
+    0
+  );
 
   // 🎨 RENDER GRID
   const renderCalendarGrid = () => {
@@ -51,7 +95,7 @@ const MerchantCalendar = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayData = monthData[dateKey] || [];
-      const dayTotal = dayData.reduce((a, b) => a + b.amount, 0);
+      const dayTotal = dayData.reduce((a, b) => a + (b.total ?? b.amount ?? 0), 0);
       let bgClass = "bg-white border-slate-100";
       if (dayTotal > 3000) bgClass = "bg-emerald-100 border-emerald-200";
       else if (dayTotal > 1000) bgClass = "bg-green-50 border-green-100";
@@ -178,11 +222,26 @@ const MerchantCalendar = () => {
             <div className="p-6 bg-emerald-50 border-b border-emerald-100 shrink-0"><p className="text-emerald-800 text-xs font-bold uppercase">Total Revenue</p><p className="text-3xl font-bold text-emerald-700 mt-1">₹{selectedDayTotal}</p><p className="text-xs text-emerald-600 mt-2">{selectedDayBills.length} Transactions found</p></div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
                 {selectedDayBills.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60"><Filter size={32} className="mb-2"/><p>No sales recorded.</p></div> : 
-                selectedDayBills.map((bill, i) => (
+                selectedDayBills.map((bill, i) => {
+                  const itemName = bill.items?.[0]?.name || bill.items?.[0] || 'Item';
+                  const remaining = Math.max((bill.items?.length || 1) - 1, 0);
+                  const timeLabel = bill.time || (bill.transactionDate ? bill.transactionDate.slice(11, 16) : '');
+                  const total = bill.total ?? bill.amount ?? 0;
+                  return (
                     <div key={i} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl">
-                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">#{i+1}</div><div><p className="text-xs text-slate-400 font-medium">{bill.time}</p><p className="text-sm font-bold text-slate-700">{bill.items[0]} + {bill.items.length-1} more</p></div></div><span className="font-bold text-slate-800">₹{bill.amount}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">#{i+1}</div>
+                        <div>
+                          <p className="text-xs text-slate-400 font-medium">{timeLabel}</p>
+                          <p className="text-sm font-bold text-slate-700">
+                            {itemName}{remaining > 0 ? ` + ${remaining} more` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-slate-800">₹{total}</span>
                     </div>
-                ))}
+                  );
+                })}
             </div>
             </div>
         </div>

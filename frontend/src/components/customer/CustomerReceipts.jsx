@@ -2,17 +2,45 @@ import React, { useState, useEffect } from 'react';
 import { MOCK_RECEIPTS } from './customerData';
 import ReceiptCard from './ReceiptCard';
 import { Search, Filter, Inbox } from 'lucide-react';
+import { fetchCustomerReceipts } from '../../services/api';
 
 const CustomerReceipts = () => {
-  // 🟢 STATE: Load from LocalStorage (Sync with Home Screen)
-  const [receipts, setReceipts] = useState(() => {
-    const saved = localStorage.getItem('customerReceipts');
-    return saved ? JSON.parse(saved) : MOCK_RECEIPTS;
-  });
+  const [receipts, setReceipts] = useState([]);
 
-  // 💾 EFFECT: Auto-save changes (like deletions)
+  // Load from backend, fall back to cached/mocks if it fails.
   useEffect(() => {
-    localStorage.setItem('customerReceipts', JSON.stringify(receipts));
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data } = await fetchCustomerReceipts();
+        if (mounted) {
+          setReceipts(data || []);
+          localStorage.setItem('customerReceipts', JSON.stringify(data || []));
+        }
+      } catch (error) {
+        const saved = localStorage.getItem('customerReceipts');
+        const fallback = saved ? JSON.parse(saved) : MOCK_RECEIPTS;
+        if (mounted) setReceipts(fallback);
+      }
+    };
+    load();
+
+    const handleUpdate = () => load();
+    window.addEventListener('customer-receipts-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('customer-receipts-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  // 💾 EFFECT: Auto-save changes (client-only edits like delete)
+  useEffect(() => {
+    if (receipts?.length) {
+      localStorage.setItem('customerReceipts', JSON.stringify(receipts));
+    }
   }, [receipts]);
 
   // UI State

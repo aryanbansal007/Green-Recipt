@@ -6,7 +6,7 @@ export const getCustomerAnalytics = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const categoryBreakdown = await Receipt.aggregate([
-      { $match: { userId } },
+      { $match: { userId, $or: [{ excludeFromStats: { $exists: false } }, { excludeFromStats: false }] } },
       {
         $group: {
           _id: "$category",
@@ -17,7 +17,7 @@ export const getCustomerAnalytics = async (req, res) => {
     ]);
 
     const total = await Receipt.aggregate([
-      { $match: { userId } },
+      { $match: { userId, $or: [{ excludeFromStats: { $exists: false } }, { excludeFromStats: false }] } },
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]);
 
@@ -40,7 +40,7 @@ export const getMerchantAnalytics = async (req, res) => {
     const merchantId = new mongoose.Types.ObjectId(req.user.id);
 
     const breakdown = await Receipt.aggregate([
-      { $match: { merchantId } },
+      { $match: { merchantId, $or: [{ excludeFromStats: { $exists: false } }, { excludeFromStats: false }] } },
       {
         $group: {
           _id: "$category",
@@ -51,7 +51,7 @@ export const getMerchantAnalytics = async (req, res) => {
     ]);
 
     const total = await Receipt.aggregate([
-      { $match: { merchantId } },
+      { $match: { merchantId, $or: [{ excludeFromStats: { $exists: false } }, { excludeFromStats: false }] } },
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]);
 

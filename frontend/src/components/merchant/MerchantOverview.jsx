@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, PlusCircle, ShoppingBag, Clock, X, Receipt } from 'lucide-react';
+import { fetchMerchantReceipts } from '../../services/api';
 
 const MerchantOverview = ({ onNavigate }) => {
   
@@ -7,25 +8,31 @@ const MerchantOverview = ({ onNavigate }) => {
   const [sales, setSales] = useState([]);
   const [viewingReceipt, setViewingReceipt] = useState(null); // 👈 Track clicked bill
 
-  // 1️⃣ Load Data
-  const loadData = () => {
-    const saved = localStorage.getItem('merchantSales');
-    if (saved) {
-      setSales(JSON.parse(saved));
-    }
-  };
-
-  // 2️⃣ Setup Listeners
+  // Load from backend with local fallback
   useEffect(() => {
-    loadData();
-    window.addEventListener('merchantStorage', loadData);
-    return () => window.removeEventListener('merchantStorage', loadData);
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data } = await fetchMerchantReceipts();
+        if (mounted) {
+          setSales(data || []);
+          localStorage.setItem('merchantSales', JSON.stringify(data || []));
+        }
+      } catch (error) {
+        const saved = localStorage.getItem('merchantSales');
+        if (mounted && saved) setSales(JSON.parse(saved));
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // 3️⃣ Filter Logic
   const todayStr = new Date().toISOString().split('T')[0];
   const todaysBills = sales.filter(bill => bill.date === todayStr);
-  const totalSales = todaysBills.reduce((sum, bill) => sum + bill.total, 0); 
+  const totalSales = todaysBills.reduce((sum, bill) => sum + (bill.total ?? bill.amount ?? 0), 0); 
   const billCount = todaysBills.length;
 
   return (
@@ -98,12 +105,12 @@ const MerchantOverview = ({ onNavigate }) => {
                     </div>
                     <div>
                       <p className="font-bold text-slate-700 text-sm group-hover:text-emerald-700 transition-colors">
-                        Bill #{bill.id?.includes('-') ? bill.id.split('-')[1] : bill.id}
+                        Bill #{bill.id?.includes('-') ? bill.id.split('-')[1] : bill.id || bill._id}
                       </p>
                       <p className="text-xs text-slate-400 flex items-center gap-1"><Clock size={10} /> {bill.time}</p>
                     </div>
                   </div>
-                  <span className="font-bold text-slate-800">₹{bill.total}</span>
+                      <span className="font-bold text-slate-800">₹{bill.total ?? bill.amount}</span>
                 </div>
               ))
             }
@@ -140,7 +147,7 @@ const MerchantOverview = ({ onNavigate }) => {
                <div className="text-center border-b border-dashed border-slate-200 pb-4 mb-4">
                   <h2 className="text-xl font-bold text-slate-800">{viewingReceipt.merchant}</h2>
                   <p className="text-xs text-slate-400 mt-1">{viewingReceipt.date} at {viewingReceipt.time}</p>
-                  <p className="text-[10px] text-slate-400 font-mono mt-1">ID: {viewingReceipt.id}</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-1">ID: {viewingReceipt.id || viewingReceipt._id}</p>
                </div>
 
                {/* Items List */}
@@ -149,10 +156,10 @@ const MerchantOverview = ({ onNavigate }) => {
                    <div key={i} className="flex justify-between text-sm">
                      {/* Handle short keys (n, q, p) or full keys (name, qty, price) */}
                      <span className="text-slate-600">
-                        {item.q || item.quantity || 1} x {item.n || item.name}
+                        {(item.q || item.qty || item.quantity || 1)} x {item.n || item.name}
                      </span>
                      <span className="font-bold text-slate-800">
-                        ₹{(item.p || item.price) * (item.q || item.quantity || 1)}
+                        ₹{(item.p || item.price || item.unitPrice) * (item.q || item.qty || item.quantity || 1)}
                      </span>
                    </div>
                  ))}
@@ -160,7 +167,7 @@ const MerchantOverview = ({ onNavigate }) => {
 
                <div className="border-t border-dashed border-slate-200 pt-4 flex justify-between items-center mb-6">
                  <span className="font-bold text-slate-500">TOTAL RECEIVED</span>
-                 <span className="text-2xl font-bold text-slate-800">₹{viewingReceipt.total}</span>
+                  <span className="text-2xl font-bold text-slate-800">₹{viewingReceipt.total ?? viewingReceipt.amount}</span>
                </div>
 
                <div className="text-center">
