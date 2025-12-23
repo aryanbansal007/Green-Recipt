@@ -32,6 +32,8 @@ const mapReceiptToClient = (receipt) => {
     id: receipt._id,
     merchant: receipt.merchantSnapshot?.shopName,
     merchantCode: receipt.merchantSnapshot?.merchantCode,
+    customerName: receipt.customerSnapshot?.name || null,
+    customerEmail: receipt.customerSnapshot?.email || null,
     amount: receipt.total,
     date: isoDate,
     time,

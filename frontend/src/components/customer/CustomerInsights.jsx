@@ -389,41 +389,6 @@ const CustomerInsights = () => {
             </div>
           )}
 
-          {/* Payment Method Quick Summary */}
-          {paymentMethods?.length > 0 && (
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <h3 className="font-bold text-slate-700 mb-4">Payment Summary (This Month)</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {/* UPI Summary */}
-                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Smartphone size={18} className="text-emerald-600" />
-                    <span className="font-bold text-emerald-700 text-sm">UPI</span>
-                  </div>
-                  <p className="text-xl font-bold text-emerald-700">
-                    ₹{(paymentMethods.find(pm => pm.method?.toLowerCase() === 'upi')?.total || 0).toLocaleString('en-IN')}
-                  </p>
-                  <p className="text-xs text-emerald-600 mt-1">
-                    {paymentMethods.find(pm => pm.method?.toLowerCase() === 'upi')?.count || 0} payments
-                  </p>
-                </div>
-                {/* Cash Summary */}
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Banknote size={18} className="text-amber-600" />
-                    <span className="font-bold text-amber-700 text-sm">Cash</span>
-                  </div>
-                  <p className="text-xl font-bold text-amber-700">
-                    ₹{(paymentMethods.find(pm => pm.method?.toLowerCase() === 'cash')?.total || 0).toLocaleString('en-IN')}
-                  </p>
-                  <p className="text-xs text-amber-600 mt-1">
-                    {paymentMethods.find(pm => pm.method?.toLowerCase() === 'cash')?.count || 0} payments
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Top Merchants */}
           {topMerchants?.length > 0 && (
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowUpRight, PlusCircle, ShoppingBag, Clock, X, Receipt } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowUpRight, PlusCircle, ShoppingBag, Clock, X, Receipt, User, TrendingUp, Flame } from 'lucide-react';
 import { fetchMerchantReceipts } from '../../services/api';
 
 const MerchantOverview = ({ onNavigate }) => {
@@ -36,6 +36,45 @@ const MerchantOverview = ({ onNavigate }) => {
   const todaysBills = sales.filter(bill => bill.date === todayStr);
   const totalSales = todaysBills.reduce((sum, bill) => sum + (bill.total ?? bill.amount ?? 0), 0); 
   const billCount = todaysBills.length;
+
+  // 🔥 Calculate REAL Trending Items from sales data
+  const trendingItems = useMemo(() => {
+    // Get items from all sales (not just today - last 7 days for better trends)
+    const allItems = {};
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    sales.forEach(bill => {
+      // Only include recent sales
+      if (bill.date >= sevenDaysAgoStr && bill.items) {
+        bill.items.forEach(item => {
+          const name = item.name || item.n || 'Unknown Item';
+          const qty = item.qty || item.quantity || item.q || 1;
+          const price = item.price || item.unitPrice || item.p || 0;
+          
+          if (!allItems[name]) {
+            allItems[name] = { name, count: 0, revenue: 0 };
+          }
+          allItems[name].count += qty;
+          allItems[name].revenue += price * qty;
+        });
+      }
+    });
+
+    // Convert to array and sort by count
+    const sortedItems = Object.values(allItems)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Calculate percentage based on top seller
+    const maxCount = sortedItems[0]?.count || 1;
+    return sortedItems.map((item, index) => ({
+      ...item,
+      percentage: Math.round((item.count / maxCount) * 100),
+      color: ['bg-emerald-500', 'bg-blue-500', 'bg-orange-500', 'bg-purple-500', 'bg-pink-500'][index % 5]
+    }));
+  }, [sales]);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-20">
@@ -103,32 +142,61 @@ const MerchantOverview = ({ onNavigate }) => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
-                      <ShoppingBag size={18} />
+                      {bill.customerName ? <User size={18} /> : <ShoppingBag size={18} />}
                     </div>
                     <div>
                       <p className="font-bold text-slate-700 text-sm group-hover:text-emerald-700 transition-colors">
-                        Bill #{bill.id?.includes('-') ? bill.id.split('-')[1] : bill.id || bill._id}
+                        {bill.customerName || 'Walk-in Customer'}
                       </p>
-                      <p className="text-xs text-slate-400 flex items-center gap-1"><Clock size={10} /> {bill.time}</p>
+                      <p className="text-xs text-slate-400 flex items-center gap-1">
+                        <Clock size={10} /> {bill.time}
+                        {bill.items?.length > 0 && (
+                          <span className="ml-1">• {bill.items.length} item{bill.items.length > 1 ? 's' : ''}</span>
+                        )}
+                      </p>
                     </div>
                   </div>
-                      <span className="font-bold text-slate-800">₹{bill.total ?? bill.amount}</span>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-800">₹{bill.total ?? bill.amount}</span>
+                    <p className="text-[10px] text-slate-400 capitalize">{bill.paymentMethod || 'cash'}</p>
+                  </div>
                 </div>
               ))
             }
           </div>
         </div>
         
-        {/* Trending (Static for now) */}
+        {/* Trending Items (Real Data) */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h3 className="font-bold text-slate-800 mb-6">Trending Items</h3>
-            <div className="space-y-6">
-               {[{ name: "Masala Chai", count: 42, color: "bg-orange-500" }, { name: "Veg Puff", count: 28, color: "bg-emerald-500" }].map((item, i) => (
-                 <div key={i}>
-                   <div className="flex justify-between text-xs font-bold text-slate-600 mb-1"><span>{item.name}</span><span>{item.count} sold</span></div>
-                   <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${item.color}`} style={{ width: `${item.count}%` }}></div></div>
-                 </div>
-               ))}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-slate-800">Trending Items</h3>
+              <div className="flex items-center gap-1 text-orange-500">
+                <Flame size={16} />
+                <span className="text-xs font-bold">This Week</span>
+              </div>
+            </div>
+            <div className="space-y-5">
+               {trendingItems.length === 0 ? (
+                 <p className="text-slate-400 text-center py-4 text-sm">No sales data yet</p>
+               ) : (
+                 trendingItems.map((item, i) => (
+                   <div key={i}>
+                     <div className="flex justify-between text-xs font-bold text-slate-600 mb-1.5">
+                       <span className="flex items-center gap-2">
+                         <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                         {item.name}
+                       </span>
+                       <span className="text-slate-500">{item.count} sold • ₹{item.revenue}</span>
+                     </div>
+                     <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                       <div 
+                         className={`h-full ${item.color} rounded-full transition-all duration-700`} 
+                         style={{ width: `${item.percentage}%` }}
+                       />
+                     </div>
+                   </div>
+                 ))
+               )}
             </div>
         </div>
       </div>
@@ -149,7 +217,15 @@ const MerchantOverview = ({ onNavigate }) => {
                <div className="text-center border-b border-dashed border-slate-200 pb-4 mb-4">
                   <h2 className="text-xl font-bold text-slate-800">{viewingReceipt.merchant}</h2>
                   <p className="text-xs text-slate-400 mt-1">{viewingReceipt.date} at {viewingReceipt.time}</p>
-                  <p className="text-[10px] text-slate-400 font-mono mt-1">ID: {viewingReceipt.id || viewingReceipt._id}</p>
+                  {viewingReceipt.customerName && (
+                    <div className="mt-3 flex items-center justify-center gap-2 text-emerald-600">
+                      <User size={14} />
+                      <span className="text-sm font-semibold">{viewingReceipt.customerName}</span>
+                    </div>
+                  )}
+                  {!viewingReceipt.customerName && (
+                    <p className="text-xs text-slate-400 mt-2">Walk-in Customer</p>
+                  )}
                </div>
 
                {/* Items List */}
@@ -173,7 +249,9 @@ const MerchantOverview = ({ onNavigate }) => {
                </div>
 
                <div className="text-center">
-                 <p className="text-[10px] text-emerald-600 font-bold uppercase bg-emerald-50 inline-block px-3 py-1 rounded-full">Payment Completed</p>
+                 <p className="text-[10px] text-emerald-600 font-bold uppercase bg-emerald-50 inline-block px-3 py-1 rounded-full">
+                   Paid via {viewingReceipt.paymentMethod === 'upi' ? 'UPI' : viewingReceipt.paymentMethod === 'cash' ? 'Cash' : viewingReceipt.paymentMethod || 'Cash'}
+                 </p>
                </div>
             </div>
           </div>
