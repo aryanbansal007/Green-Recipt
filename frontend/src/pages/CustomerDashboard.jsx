@@ -23,8 +23,10 @@ const CustomerDashboard = () => {
     const loadReceipts = async () => {
       try {
         const { data } = await fetchCustomerReceipts();
-        setReceipts(data);
-        localStorage.setItem('customerReceipts', JSON.stringify(data));
+        // Backend returns { receipts: [...], pagination: {...} }
+        const receiptsData = data.receipts || data || [];
+        setReceipts(receiptsData);
+        localStorage.setItem('customerReceipts', JSON.stringify(receiptsData));
       } catch (e) {
         // Fallback to localStorage
         const cached = JSON.parse(localStorage.getItem('customerReceipts') || '[]');
