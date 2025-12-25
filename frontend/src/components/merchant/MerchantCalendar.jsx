@@ -1649,10 +1649,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar as CalendarIcon, X, Filter, ChevronDown, Check, Receipt, User, ShoppingBag, Wallet, ChevronLeft, ChevronRight } from 'lucide-react'; 
 import { fetchMerchantReceipts } from '../../services/api';
 import { MONTH_NAMES } from '../../utils/mockData';
+import { getISTYear, getISTMonth } from '../../utils/timezone';
 
 const MerchantCalendar = () => {
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(getISTYear());
+  const [selectedMonth, setSelectedMonth] = useState(getISTMonth());
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [monthData, setMonthData] = useState({});
   const [receipts, setReceipts] = useState([]);

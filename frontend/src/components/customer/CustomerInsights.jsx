@@ -6,6 +6,7 @@ import {
   ChevronRight, IndianRupee, Activity, Package, Flame, Star
 } from 'lucide-react';
 import { fetchCustomerAnalytics } from '../../services/api';
+import { formatISTDisplay, toIST } from '../../utils/timezone';
 
 // ============== SKELETON LOADER ==============
 const InsightsSkeleton = () => (
@@ -182,7 +183,7 @@ const CustomerInsights = () => {
   const chartData = useMemo(() => {
     if (!analytics?.trends?.daily) return [];
     return analytics.trends.daily.slice(-14).map(d => ({
-      label: new Date(d.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      label: formatISTDisplay(toIST(d.date), { day: 'numeric', month: 'short' }),
       value: d.total,
     }));
   }, [analytics]);
@@ -607,7 +608,7 @@ const CustomerInsights = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-700 text-sm truncate">{activity.merchant}</p>
                       <p className="text-xs text-slate-400">
-                        {new Date(activity.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {formatISTDisplay(toIST(activity.date), { day: 'numeric', month: 'short' })}
                         {' • '}{activity.category} • {activity.paymentMethod}
                       </p>
                     </div>
@@ -654,7 +655,7 @@ const CustomerInsights = () => {
 
       {/* Footer Note */}
       <p className="text-center text-xs text-slate-400 pt-4">
-        Data refreshed {analytics?.meta?.generatedAt ? new Date(analytics.meta.generatedAt).toLocaleTimeString('en-IN') : 'recently'}
+        Data refreshed {analytics?.meta?.generatedAt ? formatISTDisplay(toIST(analytics.meta.generatedAt), { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'recently'}
       </p>
 
       {/* CSS */}

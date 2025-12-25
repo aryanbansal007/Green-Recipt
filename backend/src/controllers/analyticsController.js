@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Receipt from "../models/Receipt.js";
+import { getISTDateRanges, getNowIST, toIST, formatISTDateTime } from "../utils/timezone.js";
 
 // ============ SIMPLE IN-MEMORY CACHE ============
 // In production, use Redis for distributed caching
@@ -23,31 +24,9 @@ export const clearAnalyticsCache = (userId) => {
   analyticsCache.delete(`merchant_${userId}`);
 };
 
-// Helper to get date ranges
+// Helper to get date ranges - ALL IN IST
 const getDateRanges = () => {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-  const startOfLastWeek = new Date(startOfWeek);
-  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
-  const endOfLastWeek = new Date(startOfWeek);
-  endOfLastWeek.setMilliseconds(-1);
-  
-  return {
-    now,
-    startOfMonth,
-    startOfLastMonth,
-    endOfLastMonth,
-    startOfYear,
-    startOfWeek,
-    startOfLastWeek,
-    endOfLastWeek,
-  };
+  return getISTDateRanges();
 };
 
 export const getCustomerAnalytics = async (req, res) => {
@@ -336,11 +315,12 @@ export const getCustomerAnalytics = async (req, res) => {
         avgPrice: Math.round(item.avgPrice || 0),
       })),
 
-      // Insights metadata
+      // Insights metadata - ALL TIMESTAMPS IN IST
       meta: {
-        generatedAt: new Date().toISOString(),
-        periodStart: startOfMonth.toISOString(),
-        periodEnd: now.toISOString(),
+        generatedAt: formatISTDateTime(getNowIST()),
+        periodStart: formatISTDateTime(startOfMonth),
+        periodEnd: formatISTDateTime(now),
+        timezone: "IST (UTC+05:30)",
       },
     };
     }); // End of getCachedOrFetch
@@ -702,10 +682,12 @@ export const getMerchantAnalytics = async (req, res) => {
         itemCount: r.items?.length || 0,
       })),
 
+      // Metadata - ALL TIMESTAMPS IN IST
       meta: {
-        generatedAt: new Date().toISOString(),
-        periodStart: startOfMonth.toISOString(),
-        periodEnd: now.toISOString(),
+        generatedAt: formatISTDateTime(getNowIST()),
+        periodStart: formatISTDateTime(startOfMonth),
+        periodEnd: formatISTDateTime(now),
+        timezone: "IST (UTC+05:30)",
       },
     };
     }); // End of getCachedOrFetch

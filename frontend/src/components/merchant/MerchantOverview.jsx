@@ -353,6 +353,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import { ArrowUpRight, PlusCircle, ShoppingBag, Clock, X, Receipt, User, TrendingUp, Flame, MapPin, Phone as PhoneIcon } from 'lucide-react';
 import { fetchMerchantReceipts } from '../../services/api';
+import { getTodayIST, formatISTDisplay, getNowIST } from '../../utils/timezone';
 
 const MerchantOverview = () => { // 👈 Removed unused 'onNavigate' prop
   
@@ -385,16 +386,17 @@ const MerchantOverview = () => { // 👈 Removed unused 'onNavigate' prop
     };
   }, []);
 
-  // Filter Logic
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Filter Logic - Using IST for date comparisons
+  const todayStr = getTodayIST();
   const todaysBills = sales.filter(bill => bill.date === todayStr);
   const totalSales = todaysBills.reduce((sum, bill) => sum + (bill.total ?? bill.amount ?? 0), 0); 
   const billCount = todaysBills.length;
 
-  // Trending Items Logic
+  // Trending Items Logic - Using IST for 7-day window
   const trendingItems = useMemo(() => {
     const allItems = {};
-    const sevenDaysAgo = new Date();
+    const now = getNowIST();
+    const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
@@ -437,7 +439,7 @@ const MerchantOverview = () => { // 👈 Removed unused 'onNavigate' prop
         <div className="text-right hidden md:block">
           <p className="text-xs font-bold text-slate-400 uppercase">Current Date</p>
           <p className="text-slate-800 font-medium">
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {formatISTDisplay(getNowIST(), { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
       </div>

@@ -374,11 +374,12 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar as CalendarIcon, X, Filter, ChevronDown, Check, Receipt, Store, MapPin, Phone as PhoneIcon, Wallet, ChevronLeft, ChevronRight } from 'lucide-react'; 
 import { fetchCustomerReceipts } from '../../services/api';
 import { MONTH_NAMES } from '../../utils/mockData';
+import { getISTYear, getISTMonth } from '../../utils/timezone';
 
 const CustomerCalendar = () => {
-  // 🟢 STATE
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  // 🟢 STATE - Initialize with IST year/month
+  const [selectedYear, setSelectedYear] = useState(getISTYear());
+  const [selectedMonth, setSelectedMonth] = useState(getISTMonth());
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [monthData, setMonthData] = useState({});
   const [receipts, setReceipts] = useState([]);

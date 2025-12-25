@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { fetchCustomerReceipts, createReceipt, fetchCustomerAnalytics } from '../../services/api';
 import toast from 'react-hot-toast';
+import { getTodayIST, formatISTDateDisplay } from '../../utils/timezone';
 
 // ============== SKELETON LOADER ==============
 const HomeSkeleton = () => (
@@ -130,7 +131,7 @@ const CustomerHome = ({ onNavigate, onScanTrigger }) => {
   const [pendingFile, setPendingFile] = useState(null); 
   const [manualAmount, setManualAmount] = useState(""); 
   const [manualMerchant, setManualMerchant] = useState(""); 
-  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(getTodayIST()); // IST date
   const [includeInStats, setIncludeInStats] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -163,7 +164,7 @@ const CustomerHome = ({ onNavigate, onScanTrigger }) => {
         setPendingFile({ url: reader.result, name: file.name });
         setManualAmount(""); 
         setManualMerchant(""); 
-        setManualDate(new Date().toISOString().split('T')[0]);
+        setManualDate(getTodayIST()); // Reset to today IST
         setIncludeInStats(true);
       };
       reader.readAsDataURL(file);
@@ -193,7 +194,7 @@ const CustomerHome = ({ onNavigate, onScanTrigger }) => {
       setPendingFile(null);
       setManualAmount("");
       setManualMerchant("");
-      setManualDate(new Date().toISOString().split('T')[0]);
+      setManualDate(getTodayIST()); // Reset to today IST
       setIncludeInStats(true);
       toast.success("Receipt uploaded successfully!");
     } catch (error) {

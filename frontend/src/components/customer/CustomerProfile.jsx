@@ -5,6 +5,7 @@ import {
   TrendingUp, RefreshCw, Trash2, Camera, Edit3
 } from 'lucide-react';
 import { fetchProfile, updateProfile, clearSession, changePassword, deleteAccount, fetchCustomerAnalytics } from '../../services/api';
+import { formatISTDisplay } from '../../utils/timezone';
 
 // ============== TOAST NOTIFICATION COMPONENT ==============
 const Toast = ({ message, type = 'success', onClose }) => {
@@ -178,7 +179,7 @@ const CustomerProfile = () => {
 
   const memberSince = useMemo(() => {
     if (!profile?.createdAt) return null;
-    return new Date(profile.createdAt).toLocaleDateString('en-US', {
+    return formatISTDisplay(profile.createdAt, {
       month: 'long',
       year: 'numeric'
     });

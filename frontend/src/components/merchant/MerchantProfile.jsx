@@ -1140,6 +1140,7 @@ import {
   ImageIcon, Upload, Camera 
 } from 'lucide-react';
 import { fetchProfile, updateProfile, fetchMerchantAnalytics, clearSession } from '../../services/api';
+import { formatISTDisplay } from '../../utils/timezone';
 
 // ============== TOAST NOTIFICATION ==============
 const Toast = ({ message, type = 'success', onClose }) => {
@@ -1234,7 +1235,7 @@ const MerchantProfile = () => {
 
   const memberSince = useMemo(() => {
     if (!profile?.createdAt) return null;
-    return new Date(profile.createdAt).toLocaleDateString('en-US', {
+    return formatISTDisplay(profile.createdAt, {
       month: 'short', day: 'numeric', year: 'numeric'
     });
   }, [profile?.createdAt]);

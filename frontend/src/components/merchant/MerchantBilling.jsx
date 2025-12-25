@@ -1768,6 +1768,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, QrCode, X, Plus, Minus, Trash2, Search, Zap, CheckCircle, Banknote, Smartphone, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createReceipt, markReceiptPaid } from '../../services/api';
+import { getTodayIST, formatISTDisplay, getNowIST } from '../../utils/timezone';
 
 const MerchantBilling = ({ inventory }) => {
   const navigate = useNavigate();
@@ -1858,8 +1859,8 @@ const MerchantBilling = ({ inventory }) => {
     const baseBill = {
       merchant: merchantProfile.shopName,
       mid: merchantProfile.merchantId,
-      date: new Date().toISOString().split('T')[0], 
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      date: getTodayIST(), 
+      time: formatISTDisplay(getNowIST(), { hour: '2-digit', minute: '2-digit', hour12: true }),
       total: cartTotal,
       items: cart.map(item => ({
         n: item.name, 
@@ -1875,7 +1876,7 @@ const MerchantBilling = ({ inventory }) => {
         items: cart.map(item => ({ name: item.name, unitPrice: item.price, quantity: item.quantity })),
         source: 'qr',
         paymentMethod: 'upi', 
-        transactionDate: new Date().toISOString(),
+        transactionDate: getNowIST().toISOString(),
         total: cartTotal,
         footer: merchantProfile.receiptFooter,
         status: 'pending',

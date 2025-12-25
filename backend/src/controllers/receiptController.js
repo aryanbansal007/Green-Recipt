@@ -1,6 +1,7 @@
 import Receipt from "../models/Receipt.js";
 import Merchant from "../models/Merchant.js";
 import User from "../models/User.js";
+import { getNowIST, normalizeToIST, formatISTDate, formatISTTime, toIST } from "../utils/timezone.js";
 
 const normalizeItems = (items = []) =>
   items.map((item) => ({
@@ -23,10 +24,10 @@ const computeTotal = (items) =>
   items.reduce((sum, item) => sum + (item.unitPrice || 0) * (item.quantity || 0), 0);
 
 const mapReceiptToClient = (receipt) => {
-  const date = receipt.transactionDate || receipt.createdAt;
-  const iso = date instanceof Date ? date.toISOString() : new Date(date).toISOString();
-  const [isoDate, timePart] = iso.split("T");
-  const time = timePart?.slice(0, 5) || "";
+  // Convert transaction date to IST for display
+  const transactionDateIST = toIST(receipt.transactionDate || receipt.createdAt);
+  const isoDate = formatISTDate(transactionDateIST);
+  const time = formatISTTime(transactionDateIST);
 
   return {
     id: receipt._id,
@@ -50,7 +51,9 @@ const mapReceiptToClient = (receipt) => {
     footer: receipt.footer || receipt.merchantSnapshot?.receiptFooter || "",
     status: receipt.status,
     paymentMethod: receipt.paymentMethod,
-    paidAt: receipt.paidAt, // When merchant confirmed payment
+    paidAt: receipt.paidAt ? toIST(receipt.paidAt).toISOString() : null, // When merchant confirmed payment (IST)
+    createdAt: receipt.createdAt ? toIST(receipt.createdAt).toISOString() : null,
+    updatedAt: receipt.updatedAt ? toIST(receipt.updatedAt).toISOString() : null,
   };
 };
 
@@ -143,7 +146,8 @@ export const createReceipt = async (req, res) => {
       source,
       paymentMethod,
       status,
-      transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+      // Normalize transaction date to IST
+      transactionDate: normalizeToIST(transactionDate),
       note,
       imageUrl,
       excludeFromStats: Boolean(excludeFromStats),
@@ -239,7 +243,7 @@ export const markReceiptPaid = async (req, res) => {
     if (paymentMethod && ["upi", "cash", "card", "other"].includes(paymentMethod)) {
       receipt.paymentMethod = paymentMethod;
     }
-    receipt.paidAt = new Date(); // Record when payment was confirmed
+    receipt.paidAt = getNowIST(); // Record when payment was confirmed (IST)
     
     await receipt.save();
     res.json(mapReceiptToClient(receipt.toObject()));

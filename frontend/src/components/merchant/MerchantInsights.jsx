@@ -6,6 +6,7 @@ import {
   Award, Target, Zap, IndianRupee, ShoppingBag
 } from 'lucide-react';
 import { fetchMerchantAnalytics } from '../../services/api';
+import { formatISTDisplay, toIST } from '../../utils/timezone';
 
 // ============== SKELETON LOADER ==============
 const InsightsSkeleton = () => (
@@ -124,7 +125,7 @@ const MerchantInsights = () => {
   const chartData = useMemo(() => {
     if (!analytics?.dailySales) return [];
     return analytics.dailySales.slice(-14).map(d => ({
-      label: new Date(d.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      label: formatISTDisplay(toIST(d.date), { day: 'numeric', month: 'short' }),
       value: d.total,
     }));
   }, [analytics]);
@@ -525,7 +526,7 @@ const MerchantInsights = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-700 text-sm truncate">{activity.customer}</p>
                       <p className="text-xs text-slate-400">
-                        {new Date(activity.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {formatISTDisplay(toIST(activity.date), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         {' • '}{activity.itemCount} items • {activity.paymentMethod}
                       </p>
                     </div>
@@ -572,7 +573,7 @@ const MerchantInsights = () => {
 
       {/* Footer */}
       <p className="text-center text-xs text-slate-400 pt-4">
-        Data refreshed {analytics?.meta?.generatedAt ? new Date(analytics.meta.generatedAt).toLocaleTimeString('en-IN') : 'recently'}
+        Data refreshed {analytics?.meta?.generatedAt ? formatISTDisplay(toIST(analytics.meta.generatedAt), { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'recently'}
       </p>
 
       {/* CSS */}

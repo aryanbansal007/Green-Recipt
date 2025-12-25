@@ -9,6 +9,7 @@ import CustomerProfile from '../components/customer/CustomerProfile';
 import CustomerNotifications from '../components/customer/CustomerNotifications';
 import { ScanLine, Bell, X, CheckCircle, AlertCircle, Smartphone, Banknote, Clock, ShoppingBag } from 'lucide-react';
 import { createReceipt, claimReceipt, fetchCustomerReceipts } from '../services/api';
+import { getNowIST } from '../utils/timezone';
 
 const CustomerDashboard = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -122,7 +123,7 @@ const CustomerDashboard = () => {
         source: 'qr',
         // Note: This paymentMethod is customer's INTENT, not final - merchant will confirm
         paymentMethod: method,
-        transactionDate: scannedBillData.date || new Date().toISOString(),
+        transactionDate: scannedBillData.date || getNowIST().toISOString(),
         total: scannedBillData.total,
         note: scannedBillData.note,
         footer: scannedBillData.footer,

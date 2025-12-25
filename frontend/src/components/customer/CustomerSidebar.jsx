@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Home, FileText, Calendar, PieChart, User, Receipt, Bell, Leaf, Sparkles, TreePine, Droplets } from 'lucide-react';
+import { getNowIST } from '../../utils/timezone';
 
 const CustomerSidebar = ({ activeTab, onNavigate, receipts = [] }) => {
   
@@ -16,8 +17,8 @@ const CustomerSidebar = ({ activeTab, onNavigate, receipts = [] }) => {
     const treeContribution = paperSaved / treeSavingRate;
     const waterSaved = paperSaved * waterPerKgPaper;
     
-    // Get this month's receipts
-    const now = new Date();
+    // Get this month's receipts using IST
+    const now = getNowIST();
     const thisMonthReceipts = receipts.filter(r => {
       const receiptDate = new Date(r.date || r.createdAt);
       return receiptDate.getMonth() === now.getMonth() && 
