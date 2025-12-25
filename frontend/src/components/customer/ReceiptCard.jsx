@@ -1,41 +1,27 @@
 import React, { useState } from 'react';
 import { QrCode, Image, X, Calendar, Receipt, Trash2, CreditCard, Smartphone, EyeOff, CheckCircle, Check, Banknote, Loader2, ChevronRight, Clock, Store, ShoppingBag, MapPin, Phone } from 'lucide-react';
-import { updateReceipt, deleteReceipt as deleteReceiptApi } from '../../services/api';
+import { deleteReceipt as deleteReceiptApi } from '../../services/api';
 
 const ReceiptCard = ({ data, onDelete, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState(
-    data.status === 'completed' ? (data.paymentMethod === 'cash' ? 'Cash' : data.paymentMethod === 'upi' ? 'UPI' : 'Paid') : null
-  );
+  // Customer's selected intent (informational only - does NOT update database)
+  const [customerIntent, setCustomerIntent] = useState(null);
 
   const isQR = data.type === 'qr';
+  // Payment status comes from database (merchant-controlled)
   const isPaid = data.status === 'completed';
   
   // Get merchant branding from snapshot
   const branding = data.merchantSnapshot || {};
   const brandColor = branding.brandColor || '#10b981';
 
-  // Process payment - update backend and reflect locally
-  const handlePayment = async (method) => {
-    if (isProcessing) return;
-    
-    setIsProcessing(true);
-    try {
-      const paymentMethod = method === 'UPI' ? 'upi' : 'cash';
-      const { data: updatedReceipt } = await updateReceipt(data.id, {
-        paymentMethod,
-        status: 'completed'
-      });
-      
-      onUpdate(updatedReceipt);
-      setPaymentStatus(method);
-    } catch (error) {
-      console.error('Payment update failed:', error);
-      alert('Failed to process payment. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
+  // Customer payment intent selection - INFORMATIONAL ONLY
+  // This does NOT update the database - only the merchant can finalize payment
+  const handlePaymentIntent = (method) => {
+    setCustomerIntent(method);
+    // Show confirmation that intent was recorded
+    // The actual payment confirmation must come from merchant
   };
 
   // Delete receipt from backend
@@ -295,24 +281,42 @@ const ReceiptCard = ({ data, onDelete, onUpdate }) => {
                 <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold ${paymentInfo.bg} ${paymentInfo.color}`}>
                   <Check size={16} /> Paid via {paymentInfo.label}
                 </div>
+              ) : customerIntent ? (
+                // Customer has indicated payment intent - waiting for merchant confirmation
+                <div className="flex flex-col items-center gap-2">
+                  <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold ${customerIntent === 'UPI' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {customerIntent === 'UPI' ? <Smartphone size={16} /> : <Banknote size={16} />}
+                    <span>Selected: {customerIntent}</span>
+                  </div>
+                  <p className="text-xs text-slate-500 text-center">Waiting for merchant to confirm payment</p>
+                  <button 
+                    onClick={() => setCustomerIntent(null)}
+                    className="text-xs text-slate-400 hover:text-slate-600 underline"
+                  >
+                    Change selection
+                  </button>
+                </div>
               ) : (
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handlePayment('UPI')} 
-                    disabled={isProcessing}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/25"
-                  >
-                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />} 
-                    <span>UPI</span>
-                  </button>
-                  <button 
-                    onClick={() => handlePayment('Cash')} 
-                    disabled={isProcessing}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-all disabled:opacity-50 shadow-lg shadow-amber-500/25"
-                  >
-                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Banknote size={16} />} 
-                    <span>Cash</span>
-                  </button>
+                // Show payment intent options - does NOT update database
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-slate-500 text-center mb-1">Select payment method:</p>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handlePaymentIntent('UPI')} 
+                      className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/25"
+                    >
+                      <Smartphone size={16} /> 
+                      <span>UPI</span>
+                    </button>
+                    <button 
+                      onClick={() => handlePaymentIntent('Cash')} 
+                      className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/25"
+                    >
+                      <Banknote size={16} /> 
+                      <span>Cash</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-center mt-1">Merchant will confirm your payment</p>
                 </div>
               )}
             </div>

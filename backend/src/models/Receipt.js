@@ -96,6 +96,10 @@ const receiptSchema = new mongoose.Schema(
       trim: true,
       default: "general",
     },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

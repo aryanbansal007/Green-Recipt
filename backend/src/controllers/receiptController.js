@@ -50,6 +50,7 @@ const mapReceiptToClient = (receipt) => {
     footer: receipt.footer || receipt.merchantSnapshot?.receiptFooter || "",
     status: receipt.status,
     paymentMethod: receipt.paymentMethod,
+    paidAt: receipt.paidAt, // When merchant confirmed payment
   };
 };
 
@@ -223,6 +224,8 @@ export const claimReceipt = async (req, res) => {
 export const markReceiptPaid = async (req, res) => {
   try {
     const { id } = req.params;
+    const { paymentMethod } = req.body; // Accept payment method from merchant
+    
     const receipt = await Receipt.findById(id);
     if (!receipt) {
       return res.status(404).json({ message: "Receipt not found" });
@@ -231,7 +234,13 @@ export const markReceiptPaid = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to update receipt" });
     }
 
+    // Only merchant can finalize payment - this is the source of truth
     receipt.status = "completed";
+    if (paymentMethod && ["upi", "cash", "card", "other"].includes(paymentMethod)) {
+      receipt.paymentMethod = paymentMethod;
+    }
+    receipt.paidAt = new Date(); // Record when payment was confirmed
+    
     await receipt.save();
     res.json(mapReceiptToClient(receipt.toObject()));
   } catch (error) {

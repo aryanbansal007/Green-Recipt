@@ -12,7 +12,7 @@ import {
 } from "../controllers/receiptController.js";
 import { protect, requireRole } from "../middleware/authMiddleware.js";
 import { validate } from "../middleware/validate.js";
-import { createReceiptSchema, receiptIdParamSchema, claimReceiptSchema, updateReceiptSchema } from "../validators/receiptSchemas.js";
+import { createReceiptSchema, receiptIdParamSchema, claimReceiptSchema, updateReceiptSchema, markPaidSchema } from "../validators/receiptSchemas.js";
 
 const router = express.Router();
 
@@ -35,7 +35,7 @@ router.post("/", protect, requireRole("merchant", "customer"), createReceiptLimi
 router.get("/customer", protect, requireRole("customer"), getCustomerReceipts);
 router.get("/merchant", protect, requireRole("merchant"), getMerchantReceipts);
 router.post("/claim", protect, requireRole("customer"), validate(claimReceiptSchema), claimReceipt);
-router.patch("/:id/mark-paid", protect, requireRole("merchant"), validate(receiptIdParamSchema), markReceiptPaid);
+router.patch("/:id/mark-paid", protect, requireRole("merchant"), validate(markPaidSchema), markReceiptPaid);
 router.patch("/:id", protect, validate(updateReceiptSchema), updateReceipt);
 router.delete("/:id", protect, validate(receiptIdParamSchema), deleteReceipt);
 router.get("/:id", protect, validate(receiptIdParamSchema), getReceiptById);

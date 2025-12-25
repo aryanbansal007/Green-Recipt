@@ -53,6 +53,14 @@ export const claimReceiptSchema = {
 
 export const receiptIdParamSchema = { params: z.object({ id: objectId }) };
 
+// Schema for marking receipt as paid - merchant only
+export const markPaidSchema = {
+  params: z.object({ id: objectId }),
+  body: z.object({
+    paymentMethod: z.enum(["upi", "cash", "card", "other"]).optional(),
+  }),
+};
+
 export const updateReceiptSchema = {
   params: z.object({ id: objectId }),
   body: z.object({

@@ -123,7 +123,9 @@ export const fetchMerchantReceipts = (page = 1, limit = 50) =>
   api.get(`/receipts/merchant?page=${page}&limit=${limit}`);
 export const createReceipt = (payload) => api.post("/receipts", payload);
 export const claimReceipt = (payload) => api.post("/receipts/claim", payload);
-export const markReceiptPaid = (id) => api.patch(`/receipts/${id}/mark-paid`);
+// Mark receipt as paid - MERCHANT ONLY (source of truth for payment)
+export const markReceiptPaid = (id, paymentMethod) => 
+  api.patch(`/receipts/${id}/mark-paid`, { paymentMethod });
 export const updateReceipt = (id, payload) => api.patch(`/receipts/${id}`, payload);
 export const deleteReceipt = (id) => api.delete(`/receipts/${id}`);
 export const getReceiptById = (id) => api.get(`/receipts/${id}`);
