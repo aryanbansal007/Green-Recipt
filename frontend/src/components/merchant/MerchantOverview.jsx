@@ -365,6 +365,7 @@ import {
   Smartphone, // 👈 ADD THIS
   Banknote,   // 👈 ADD THIS
   Phone as PhoneIcon,
+   Wallet, // Add Wallet to imports
 } from "lucide-react";
 import { fetchMerchantReceipts } from "../../services/api";
 
@@ -564,57 +565,72 @@ const MerchantOverview = () => {
 
       {/* Metric Cards */}
     
-      {/* NEW DARK DASHBOARD CARD (Matches Screenshot) */}
-      <div className="bg-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
+
+      {/* MERCHANT DASHBOARD CARD (Customer Style) */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden">
         
-        {/* Decorative background blur */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-
-        {/* Top Section: Month Total */}
-        <div className="relative z-10 mb-8">
-          <span className="inline-block bg-slate-800 text-slate-300 text-[10px] font-bold px-3 py-1 rounded-full mb-3 tracking-wider">
-            TODAY
-          </span>
-          <h1 className="text-5xl font-bold mb-2">₹{totalSales.toLocaleString()}</h1>
-          <p className="text-slate-300 text-sm">{todaysBills.length} receipts this month</p>
-        </div>
-
-        {/* Middle Section: Split Cards (UPI / Cash) */}
-        <div className="grid grid-cols-2 gap-4 relative z-10 mb-8">
-          {/* UPI Card */}
-          <div className="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl">
-            <div className="flex items-center gap-2 mb-2 text-emerald-400">
-              <Smartphone size={16} />
-              <span className="text-xs font-bold uppercase">UPI</span>
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-48 md:w-64 h-48 md:h-64 bg-emerald-500/10 rounded-full -mr-24 md:-mr-32 -mt-24 md:-mt-32 blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-32 md:w-48 h-32 md:h-48 bg-emerald-500/10 rounded-full -ml-16 md:-ml-24 -mb-16 md:-mb-24 blur-2xl" />
+        
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+            
+            {/* Left Side: Main Stat (TODAY) */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 md:mb-3">
+                <span className="px-2 md:px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                  Today
+                </span>
+                {/* Optional: You can add percentage change here if you calculate yesterday's sales */}
+              </div>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
+                ₹{totalSales.toLocaleString('en-IN')}
+              </h2>
+              <p className="text-slate-400 text-xs md:text-sm mt-1.5 md:mt-2">
+                {todaysBills.length} receipts today
+              </p>
             </div>
-            <p className="text-2xl font-bold">₹{upiSales.toLocaleString()}</p>
-          </div>
-
-          {/* Cash Card */}
-          <div className="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl">
-            <div className="flex items-center gap-2 mb-2 text-amber-400">
-              <Banknote size={16} />
-              <span className="text-xs font-bold uppercase">Cash</span>
+            
+            {/* Right Side: Quick Stats - UPI & Cash */}
+            <div className="flex flex-row md:flex-col gap-2 md:gap-3">
+              {/* UPI */}
+              <div className="flex-1 md:flex-none bg-white/10 backdrop-blur-sm px-3 md:px-4 py-2 md:py-3 rounded-xl">
+                <div className="flex items-center gap-1.5 md:gap-2 text-emerald-400 mb-0.5 md:mb-1">
+                  <Smartphone size={12} className="md:w-[14px] md:h-[14px]" />
+                  <span className="text-[10px] md:text-xs font-medium">UPI</span>
+                </div>
+                <p className="text-base md:text-xl font-bold">₹{upiSales.toLocaleString('en-IN')}</p>
+              </div>
+              {/* Cash */}
+              <div className="flex-1 md:flex-none bg-white/10 backdrop-blur-sm px-3 md:px-4 py-2 md:py-3 rounded-xl">
+                <div className="flex items-center gap-1.5 md:gap-2 text-amber-400 mb-0.5 md:mb-1">
+                  <Banknote size={12} className="md:w-[14px] md:h-[14px]" />
+                  <span className="text-[10px] md:text-xs font-medium">Cash</span>
+                </div>
+                <p className="text-base md:text-xl font-bold">₹{cashSales.toLocaleString('en-IN')}</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold">₹{cashSales.toLocaleString()}</p>
           </div>
-        </div>
 
-        {/* Bottom Section: Footer Stats */}
-        <div className="grid grid-cols-3 border-t border-slate-800 pt-6 relative z-10">
-          <div>
-            <p className="text-slate-400 text-xs mb-1">This Month</p>
-            <p className="text-lg font-bold">₹{monthSales.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs mb-1">Bills (Month)</p>
-            <p className="text-lg font-bold">{monthBills.length}</p>
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs mb-1">This Week</p>
-            <p className="text-lg font-bold">₹{weekSales.toLocaleString()}</p>
+          {/* Bottom Grid: Period Summary */}
+          <div className="grid grid-cols-3 gap-3 md:gap-4 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/10">
+            <div>
+              <p className="text-slate-400 text-[10px] md:text-xs font-medium">This Month</p>
+              <p className="text-sm md:text-xl font-bold mt-0.5 md:mt-1">₹{monthSales.toLocaleString('en-IN')}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-[10px] md:text-xs font-medium">Bills (Month)</p>
+              <p className="text-sm md:text-xl font-bold mt-0.5 md:mt-1">{monthBills.length}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-[10px] md:text-xs font-medium">This Week</p>
+              <p className="text-sm md:text-xl font-bold mt-0.5 md:mt-1">₹{weekSales.toLocaleString('en-IN')}</p>
+            </div>
           </div>
         </div>
+        
+        <Wallet className="absolute -right-4 md:-right-6 -bottom-4 md:-bottom-6 text-white/5" size={80} />
       </div>
 
       {/* Recent Activity & Trending */}

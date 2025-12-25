@@ -280,12 +280,12 @@ const CustomerHome = ({ onNavigate, onScanTrigger }) => {
           {/* Period Summary */}
           <div className="grid grid-cols-3 gap-3 md:gap-4 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-white/10">
             <div>
-              <p className="text-slate-400 text-[10px] md:text-xs font-medium">Today</p>
-              <p className="text-sm md:text-xl font-bold mt-0.5 md:mt-1">₹{(summary?.today?.total || todaySpent || 0).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
               <p className="text-slate-400 text-[10px] md:text-xs font-medium">This Week</p>
               <p className="text-sm md:text-xl font-bold mt-0.5 md:mt-1">₹{(summary?.thisWeek?.total || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-[10px] md:text-xs font-medium">Last Month</p>
+              <p className="text-sm md:text-xl font-bold mt-0.5 md:mt-1">₹{(summary?.lastMonth?.total || 0).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <p className="text-slate-400 text-[10px] md:text-xs font-medium">This Year</p>
