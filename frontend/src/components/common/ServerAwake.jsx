@@ -10,7 +10,7 @@ const ServerAwake = ({ onReady }) => {
     const checkServer = async () => {
       try {
         // Ping the health route
-        await api.get('/api/health'); 
+        await api.get('/health'); 
         
         // If successful, finish!
         onReady(); 
