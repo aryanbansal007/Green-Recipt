@@ -187,7 +187,15 @@ const MerchantLogin = () => {
     setError("");
     try {
       const { data } = await loginUser({ email, password, role: "merchant" });
-      setSession({ token: data.token, role: data.role });
+      // Use new token storage with accessToken and refreshToken
+      setSession({ 
+        accessToken: data.accessToken, 
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn,
+        role: data.role,
+        user: data.user,
+        isProfileComplete: data.user?.isProfileComplete,
+      });
       navigate('/merchant/overview');
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");

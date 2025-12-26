@@ -19,7 +19,14 @@ const CustomerLogin = () => {
     setError("");
     try {
       const { data } = await loginUser({ email, password, role: "customer" });
-      setSession({ token: data.token, role: data.role });
+      // Use new token storage with accessToken and refreshToken
+      setSession({ 
+        accessToken: data.accessToken, 
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn,
+        role: data.role,
+        user: data.user,
+      });
       navigate("/customer-dashboard");
     } catch (error) {
       const message = error.response?.data?.message || "Login failed";

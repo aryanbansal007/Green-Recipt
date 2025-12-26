@@ -151,6 +151,9 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 // 1. 👇 Import Splash Screen only
 import ServerAwake from "./components/common/ServerAwake";
 
+// Auth Provider
+import { AuthProvider } from "./contexts/AuthContext";
+
 // Pages & Components
 import Home from "./pages/Home";
 import AuthSelection from './components/auth/AuthSelection';
@@ -181,49 +184,51 @@ function App() {
     return <ServerAwake onReady={() => setIsServerReady(true)} />;
   }
 
-  // 4. 👇 Once ready, render the Router normally
+  // 4. 👇 Once ready, render the Router with AuthProvider
   return (
-    <Router>
-      <Routes>
-        {/* 1. Public Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<AuthSelection />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* 1. Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<AuthSelection />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* 2. Customer Routes */}
-        <Route path="/customer-login" element={<CustomerLogin />} />
-        <Route path="/customer-signup" element={<CustomerSignup />} />
-        <Route path="/verify-customer" element={<CustomerVerify />} />
-        
-        <Route
-          path="/customer-dashboard"
-          element={
-            <ProtectedRoute role="customer">
-              <CustomerDashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* 2. Customer Routes */}
+          <Route path="/customer-login" element={<CustomerLogin />} />
+          <Route path="/customer-signup" element={<CustomerSignup />} />
+          <Route path="/verify-customer" element={<CustomerVerify />} />
+          
+          <Route
+            path="/customer-dashboard"
+            element={
+              <ProtectedRoute role="customer">
+                <CustomerDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* 3. Merchant Routes */}
-        <Route path="/merchant-login" element={<MerchantLogin />} />
-        <Route path="/merchant-signup" element={<MerchantSignup />} />
-        <Route path="/verify-merchant" element={<MerchantVerify />} />
+          {/* 3. Merchant Routes */}
+          <Route path="/merchant-login" element={<MerchantLogin />} />
+          <Route path="/merchant-signup" element={<MerchantSignup />} />
+          <Route path="/verify-merchant" element={<MerchantVerify />} />
 
-        {/* Merchant Dashboard (Wildcard handles sub-routes) */}
-        <Route 
-          path="/merchant/*" 
-          element={
-            <ProtectedRoute role="merchant">
-              <MerchantDashboard />
-            </ProtectedRoute>
-          } 
-        />
+          {/* Merchant Dashboard (Wildcard handles sub-routes) */}
+          <Route 
+            path="/merchant/*" 
+            element={
+              <ProtectedRoute role="merchant">
+                <MerchantDashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-        {/* 4. 404 Fallback */}
-        <Route path="*" element={<Home />} />
-      </Routes>
-    </Router>
+          {/* 4. 404 Fallback */}
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

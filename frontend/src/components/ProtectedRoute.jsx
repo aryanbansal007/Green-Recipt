@@ -19,9 +19,11 @@ import { Navigate, useLocation } from "react-router-dom";
 import * as api from "../services/api";
 
 const ProtectedRoute = ({ children, role }) => {
-  const token = localStorage.getItem("token");
-  const userRole = localStorage.getItem("role"); // 'merchant' or 'customer'
   const location = useLocation();
+  
+  // Use the new API functions to check authentication
+  const isAuth = api.isAuthenticated();
+  const userRole = api.getStoredRole();
   
   // State for onboarding check
   const [isChecking, setIsChecking] = useState(false);
@@ -34,7 +36,7 @@ const ProtectedRoute = ({ children, role }) => {
     const verifyMerchantProfile = async () => {
       // Only check for merchants who are logged in and not already on onboarding page
       if (
-        token && 
+        isAuth && 
         userRole === "merchant" && 
         role === "merchant" &&
         !location.pathname.includes("/onboarding")
@@ -53,12 +55,11 @@ const ProtectedRoute = ({ children, role }) => {
       }
     };
     verifyMerchantProfile();
-  }, [token, userRole, role, location.pathname]);
+  }, [isAuth, userRole, role, location.pathname]);
 
   // 1. CASE: User is NOT logged in at all
-  if (!token) {
-    // If they were trying to access a merchant route, send to merchant login
-    // Otherwise, send to the generic login
+  if (!isAuth) {
+    // Redirect to login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

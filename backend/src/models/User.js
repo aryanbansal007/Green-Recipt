@@ -59,6 +59,25 @@ const userSchema = new mongoose.Schema(
 			type: Date,
 			select: false,
 		},
+		// ==========================================
+		// REFRESH TOKEN FIELDS
+		// ==========================================
+		refreshToken: {
+			type: String,
+			select: false,
+		},
+		refreshTokenExpiry: {
+			type: Date,
+			select: false,
+		},
+		lastLoginAt: {
+			type: Date,
+		},
+		tokenVersion: {
+			type: Number,
+			default: 0,
+			select: false,
+		},
 	},
 	{ timestamps: true }
 );
@@ -77,6 +96,7 @@ userSchema.methods.comparePassword = function comparePassword(candidate) {
 userSchema.index({ email: 1 });
 userSchema.index({ isVerified: 1 });
 userSchema.index({ createdAt: -1 });
+userSchema.index({ refreshToken: 1 }); // For token lookup during refresh
 
 const User = mongoose.model("User", userSchema);
 

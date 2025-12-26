@@ -6,7 +6,18 @@ import Merchant from "../models/Merchant.js";
 import { sendOtpEmail } from "../utils/sendEmail.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET + "_refresh";
+
+// ==========================================
+// TOKEN CONFIGURATION
+// ==========================================
+const ACCESS_TOKEN_EXPIRES_IN = "15m"; // Short-lived access token
+const REFRESH_TOKEN_EXPIRES_IN_DAYS = 7; // 7 days for refresh token (configurable)
+const REFRESH_TOKEN_EXPIRES_IN_MS = REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000;
+
+// Legacy support - used for simple token flows
 const JWT_EXPIRES_IN = "7d";
+
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
@@ -89,10 +100,50 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// ==========================================
+// TOKEN GENERATION HELPERS
+// ==========================================
+
+// Generate short-lived access token (15 minutes)
+const generateAccessToken = (user) =>
+  jwt.sign(
+    { id: user._id, role: user.role, tokenVersion: user.tokenVersion || 0 },
+    JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+  );
+
+// Generate long-lived refresh token (7 days)
+const generateRefreshToken = (user) =>
+  jwt.sign(
+    { id: user._id, role: user.role, tokenVersion: user.tokenVersion || 0 },
+    REFRESH_TOKEN_SECRET,
+    { expiresIn: `${REFRESH_TOKEN_EXPIRES_IN_DAYS}d` }
+  );
+
+// Legacy token for backward compatibility
 const generateToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
+
+// Generate a random token for refresh token storage
+const generateRandomToken = () => crypto.randomBytes(64).toString("hex");
+
+// Store refresh token in database
+const persistRefreshToken = async (account, refreshToken) => {
+  const hashedToken = await bcrypt.hash(refreshToken, 10);
+  account.refreshToken = hashedToken;
+  account.refreshTokenExpiry = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_IN_MS);
+  account.lastLoginAt = new Date();
+  await account.save();
+};
+
+// Clear refresh token from database
+const clearRefreshToken = async (account) => {
+  account.refreshToken = undefined;
+  account.refreshTokenExpiry = undefined;
+  await account.save();
+};
 
 const generateOtpCode = () =>
   crypto.randomInt(0, 10 ** OTP_LENGTH).toString().padStart(OTP_LENGTH, "0");
@@ -217,7 +268,7 @@ export const login = async (req, res) => {
     }
 
     const Model = role === "customer" ? User : Merchant;
-    const account = await Model.findOne({ email });
+    const account = await Model.findOne({ email }).select("+refreshToken +refreshTokenExpiry +tokenVersion");
 
     if (!account) {
       return res.status(400).json({ message: "Invalid credentials" });
@@ -233,10 +284,18 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = generateToken(account);
+    // Generate both access and refresh tokens
+    const accessToken = generateAccessToken(account);
+    const refreshToken = generateRefreshToken(account);
+    
+    // Store refresh token in database
+    await persistRefreshToken(account, refreshToken);
 
     res.json({
-      token,
+      accessToken,
+      refreshToken,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+      refreshExpiresIn: REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60, // 7 days in seconds
       role: account.role,
       user:
         role === "customer"
@@ -516,11 +575,19 @@ export const verifyOtp = async (req, res) => {
     account.otpAttempts = 0;
     await account.save();
 
-    const token = generateToken(account);
+    // Generate both access and refresh tokens
+    const accessToken = generateAccessToken(account);
+    const refreshToken = generateRefreshToken(account);
+    
+    // Store refresh token in database
+    await persistRefreshToken(account, refreshToken);
 
     res.json({
       message: "Account verified successfully",
-      token,
+      accessToken,
+      refreshToken,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+      refreshExpiresIn: REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60,
       role: account.role,
       user:
         account.role === "merchant"
@@ -543,7 +610,7 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     const Model = req.user.role === "merchant" ? Merchant : User;
-    const account = await Model.findById(req.user.id);
+    const account = await Model.findById(req.user.id).select("+tokenVersion");
 
     if (!account) {
       return res.status(404).json({ message: "Account not found" });
@@ -557,6 +624,12 @@ export const changePassword = async (req, res) => {
 
     // Update password (pre-save hook will hash it)
     account.password = newPassword;
+    
+    // Increment token version to invalidate all existing sessions
+    account.tokenVersion = (account.tokenVersion || 0) + 1;
+    account.refreshToken = undefined;
+    account.refreshTokenExpiry = undefined;
+    
     await account.save();
 
     res.json({ message: "Password changed successfully" });
@@ -585,5 +658,186 @@ export const deleteAccount = async (req, res) => {
   } catch (error) {
     console.error("deleteAccount error", error);
     res.status(500).json({ message: "Failed to delete account" });
+  }
+};
+
+// ==========================================
+// REFRESH TOKEN ENDPOINTS
+// ==========================================
+
+/**
+ * Refresh access token using refresh token
+ * POST /auth/refresh
+ */
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token is required" });
+    }
+
+    // Verify the refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+    } catch (error) {
+      if (error.name === "TokenExpiredError") {
+        return res.status(401).json({ message: "Refresh token expired. Please login again.", code: "REFRESH_TOKEN_EXPIRED" });
+      }
+      return res.status(401).json({ message: "Invalid refresh token", code: "INVALID_REFRESH_TOKEN" });
+    }
+
+    // Find the account
+    const Model = decoded.role === "merchant" ? Merchant : User;
+    const account = await Model.findById(decoded.id).select("+refreshToken +refreshTokenExpiry +tokenVersion");
+
+    if (!account) {
+      return res.status(401).json({ message: "Account not found", code: "ACCOUNT_NOT_FOUND" });
+    }
+
+    // Check if refresh token is still valid in database
+    if (!account.refreshToken || !account.refreshTokenExpiry) {
+      return res.status(401).json({ message: "Session expired. Please login again.", code: "SESSION_EXPIRED" });
+    }
+
+    // Check if refresh token has expired in database
+    if (account.refreshTokenExpiry < new Date()) {
+      // Clear expired token
+      await clearRefreshToken(account);
+      return res.status(401).json({ message: "Session expired. Please login again.", code: "SESSION_EXPIRED" });
+    }
+
+    // Verify token version matches (for invalidating all sessions on password change)
+    if (decoded.tokenVersion !== (account.tokenVersion || 0)) {
+      await clearRefreshToken(account);
+      return res.status(401).json({ message: "Session invalidated. Please login again.", code: "SESSION_INVALIDATED" });
+    }
+
+    // Verify the stored refresh token matches
+    const isValidToken = await bcrypt.compare(refreshToken, account.refreshToken);
+    if (!isValidToken) {
+      // Possible token reuse attack - clear all tokens
+      await clearRefreshToken(account);
+      return res.status(401).json({ message: "Invalid session. Please login again.", code: "INVALID_SESSION" });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateAccessToken(account);
+
+    // Optionally rotate refresh token for better security
+    const newRefreshToken = generateRefreshToken(account);
+    await persistRefreshToken(account, newRefreshToken);
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+      refreshExpiresIn: REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60,
+      role: account.role,
+    });
+  } catch (error) {
+    console.error("refreshAccessToken error", error);
+    res.status(500).json({ message: "Failed to refresh token" });
+  }
+};
+
+/**
+ * Logout - invalidate refresh token
+ * POST /auth/logout
+ */
+export const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      // Even without refresh token, return success (idempotent logout)
+      return res.json({ message: "Logged out successfully" });
+    }
+
+    // Try to decode the refresh token to find the account
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+    } catch (error) {
+      // Token invalid/expired, but still return success
+      return res.json({ message: "Logged out successfully" });
+    }
+
+    // Find and clear the refresh token
+    const Model = decoded.role === "merchant" ? Merchant : User;
+    const account = await Model.findById(decoded.id).select("+refreshToken");
+
+    if (account && account.refreshToken) {
+      await clearRefreshToken(account);
+    }
+
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("logout error", error);
+    // Still return success for logout
+    res.json({ message: "Logged out successfully" });
+  }
+};
+
+/**
+ * Logout from all devices - invalidate all sessions
+ * POST /auth/logout-all
+ */
+export const logoutAll = async (req, res) => {
+  try {
+    const Model = req.user.role === "merchant" ? Merchant : User;
+    const account = await Model.findById(req.user.id).select("+tokenVersion");
+
+    if (!account) {
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    // Increment token version to invalidate all existing tokens
+    account.tokenVersion = (account.tokenVersion || 0) + 1;
+    account.refreshToken = undefined;
+    account.refreshTokenExpiry = undefined;
+    await account.save();
+
+    res.json({ message: "Logged out from all devices successfully" });
+  } catch (error) {
+    console.error("logoutAll error", error);
+    res.status(500).json({ message: "Failed to logout from all devices" });
+  }
+};
+
+/**
+ * Validate token and return session info
+ * GET /auth/session
+ */
+export const getSession = async (req, res) => {
+  try {
+    const Model = req.user.role === "merchant" ? Merchant : User;
+    const account = await Model.findById(req.user.id).lean();
+
+    if (!account) {
+      return res.status(404).json({ message: "Account not found", valid: false });
+    }
+
+    res.json({
+      valid: true,
+      role: account.role,
+      user:
+        account.role === "merchant"
+          ? {
+              id: account._id,
+              shopName: account.shopName,
+              email: account.email,
+              isProfileComplete: account.isProfileComplete || false,
+            }
+          : {
+              id: account._id,
+              name: account.name,
+              email: account.email,
+            },
+    });
+  } catch (error) {
+    console.error("getSession error", error);
+    res.status(500).json({ message: "Failed to get session", valid: false });
   }
 };

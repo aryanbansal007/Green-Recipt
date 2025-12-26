@@ -193,6 +193,25 @@ const merchantSchema = new mongoose.Schema(
 			type: Date,
 			select: false,
 		},
+		// ==========================================
+		// REFRESH TOKEN FIELDS
+		// ==========================================
+		refreshToken: {
+			type: String,
+			select: false,
+		},
+		refreshTokenExpiry: {
+			type: Date,
+			select: false,
+		},
+		lastLoginAt: {
+			type: Date,
+		},
+		tokenVersion: {
+			type: Number,
+			default: 0,
+			select: false,
+		},
 	},
 	{ timestamps: true }
 );
@@ -217,6 +236,7 @@ merchantSchema.pre("save", async function generateMerchantCode(next) {
 		for (let i = 0; i < 6; i++) {
 			code += chars.charAt(Math.floor(Math.random() * chars.length));
 		}
+merchantSchema.index({ refreshToken: 1 }); // For token lookup during refresh
 		exists = await mongoose.model("Merchant").findOne({ merchantCode: code });
 	}
 
