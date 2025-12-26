@@ -120,6 +120,13 @@ const CustomerHome = ({ onNavigate, onScanTrigger }) => {
     [receipts]
   );
 
+  const todaySpent = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return receipts
+      .filter(r => !r.excludeFromStats && (r.date || r.transactionDate || '').startsWith(todayStr))
+      .reduce((sum, r) => sum + (r.amount || 0), 0);
+  }, [receipts]);
+
   const { upiTotal, cashTotal } = useMemo(() => {
     const payments = analytics?.paymentMethods || [];
     const upi = payments.find(p => p.method?.toLowerCase() === 'upi');
