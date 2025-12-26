@@ -241,7 +241,12 @@ export const login = async (req, res) => {
       user:
         role === "customer"
           ? { id: account._id, name: account.name, email: account.email }
-          : { id: account._id, shopName: account.shopName, email: account.email },
+          : { 
+              id: account._id, 
+              shopName: account.shopName, 
+              email: account.email,
+              isProfileComplete: account.isProfileComplete || false,
+            },
     });
   } catch (error) {
     console.error("login error", error);
@@ -284,14 +289,19 @@ export const getProfile = async (req, res) => {
           email: account.email,
           phone: account.phone || null,
           address: account.address || null,
+          addressLine: account.addressLine || null,
+          businessCategory: account.businessCategory || null,
+          businessDescription: account.businessDescription || null,
+          operatingHours: account.operatingHours || [],
           receiptFooter: account.receiptFooter || "Thank you! Visit again.",
           receiptHeader: account.receiptHeader || "",
           brandColor: account.brandColor || "#10b981",
           currency: account.currency || "INR",
           merchantCode: account.merchantCode || null,
           logoUrl: account.logoUrl || null,
-          categories: account.categories || ["Drinks", "Snacks", "Food", "Other"],
           isVerified: account.isVerified,
+          isProfileComplete: account.isProfileComplete || false,
+          onboardingStep: account.onboardingStep || 0,
           createdAt: account.createdAt,
           updatedAt: account.updatedAt,
         }
@@ -322,18 +332,25 @@ export const updateProfile = async (req, res) => {
 
     if (isMerchant) {
       // Merchant profile updates
-      const { shopName, ownerName, email, phone, address, receiptFooter, receiptHeader, brandColor, logoUrl, currency, categories } = req.body;
+      const { 
+        shopName, ownerName, email, phone, address, addressLine, 
+        businessCategory, businessDescription, operatingHours,
+        receiptFooter, receiptHeader, brandColor, logoUrl, currency 
+      } = req.body;
 
       if (shopName) updates.shopName = shopName.trim();
       if (ownerName !== undefined) updates.ownerName = ownerName?.trim() || null;
       if (phone !== undefined) updates.phone = phone?.trim() || null;
-      if (address !== undefined) updates.address = address?.trim() || null;
+      if (addressLine !== undefined) updates.addressLine = addressLine?.trim() || null;
+      if (address !== undefined && typeof address === 'object') updates.address = address;
+      if (businessCategory !== undefined) updates.businessCategory = businessCategory;
+      if (businessDescription !== undefined) updates.businessDescription = businessDescription?.trim() || null;
+      if (operatingHours !== undefined) updates.operatingHours = operatingHours;
       if (receiptFooter !== undefined) updates.receiptFooter = receiptFooter?.trim() || "Thank you! Visit again.";
       if (receiptHeader !== undefined) updates.receiptHeader = receiptHeader?.trim() || "";
       if (brandColor !== undefined) updates.brandColor = brandColor?.trim() || "#10b981";
       if (logoUrl !== undefined) updates.logoUrl = logoUrl?.trim() || null;
       if (currency) updates.currency = currency.trim();
-      if (categories !== undefined) updates.categories = categories;
 
       if (email) {
         const normalized = email.trim().toLowerCase();
@@ -360,14 +377,19 @@ export const updateProfile = async (req, res) => {
         email: account.email,
         phone: account.phone || null,
         address: account.address || null,
+        addressLine: account.addressLine || null,
+        businessCategory: account.businessCategory || null,
+        businessDescription: account.businessDescription || null,
+        operatingHours: account.operatingHours || [],
         receiptFooter: account.receiptFooter || "Thank you! Visit again.",
         receiptHeader: account.receiptHeader || "",
         brandColor: account.brandColor || "#10b981",
         currency: account.currency || "INR",
         merchantCode: account.merchantCode || null,
         logoUrl: account.logoUrl || null,
-        categories: account.categories || ["Drinks", "Snacks", "Food", "Other"],
         isVerified: account.isVerified,
+        isProfileComplete: account.isProfileComplete || false,
+        onboardingStep: account.onboardingStep || 0,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
       });
@@ -502,7 +524,12 @@ export const verifyOtp = async (req, res) => {
       role: account.role,
       user:
         account.role === "merchant"
-          ? { id: account._id, shopName: account.shopName, email: account.email }
+          ? { 
+              id: account._id, 
+              shopName: account.shopName, 
+              email: account.email,
+              isProfileComplete: account.isProfileComplete || false,
+            }
           : { id: account._id, name: account.name, email: account.email },
     });
   } catch (error) {

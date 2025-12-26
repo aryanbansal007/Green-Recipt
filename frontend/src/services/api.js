@@ -99,14 +99,18 @@ const getErrorMessage = (error) => {
   }
 };
 
-export const setSession = ({ token, role }) => {
+export const setSession = ({ token, role, isProfileComplete }) => {
   localStorage.setItem("token", token);
   localStorage.setItem("role", role);
+  if (isProfileComplete !== undefined) {
+    localStorage.setItem("isProfileComplete", isProfileComplete);
+  }
 };
 
 export const clearSession = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
+  localStorage.removeItem("isProfileComplete");
 };
 
 export const signupCustomer = (payload) => api.post("/auth/signup/customer", payload);
@@ -135,5 +139,50 @@ export const fetchProfile = () => api.get("/auth/me");
 export const updateProfile = (payload) => api.patch("/auth/me", payload);
 export const changePassword = (payload) => api.post("/auth/change-password", payload);
 export const deleteAccount = () => api.delete("/auth/me");
+
+// ==========================================
+// MERCHANT ONBOARDING APIs
+// ==========================================
+export const getOnboardingStatus = () => api.get("/merchant/onboarding/status");
+export const saveBusinessInfo = (payload) => api.post("/merchant/onboarding/business-info", payload);
+export const saveOperatingHours = (payload) => api.post("/merchant/onboarding/operating-hours", payload);
+export const saveOnboardingCategories = (payload) => api.post("/merchant/onboarding/categories", payload);
+export const saveOnboardingItems = (payload) => api.post("/merchant/onboarding/items", payload);
+export const completeOnboarding = () => api.post("/merchant/onboarding/complete");
+export const skipOnboarding = () => api.post("/merchant/onboarding/skip");
+export const getMerchantFullProfile = () => api.get("/merchant/profile/full");
+
+// ==========================================
+// CATEGORY APIs
+// ==========================================
+export const fetchCategories = () => api.get("/merchant/categories");
+export const createCategory = (payload) => api.post("/merchant/categories", payload);
+export const updateCategory = (id, payload) => api.patch(`/merchant/categories/${id}`, payload);
+export const deleteCategory = (id, reassignTo = null) => 
+  api.delete(`/merchant/categories/${id}${reassignTo ? `?reassignTo=${reassignTo}` : ''}`);
+export const reorderCategories = (categoryIds) => api.patch("/merchant/categories/reorder", { categoryIds });
+
+// ==========================================
+// ITEM APIs
+// ==========================================
+export const fetchItems = (params = {}) => {
+  const queryParams = new URLSearchParams();
+  if (params.categoryId) queryParams.append('categoryId', params.categoryId);
+  if (params.isAvailable !== undefined) queryParams.append('isAvailable', params.isAvailable);
+  if (params.search) queryParams.append('search', params.search);
+  if (params.page) queryParams.append('page', params.page);
+  if (params.limit) queryParams.append('limit', params.limit);
+  const queryString = queryParams.toString();
+  return api.get(`/merchant/items${queryString ? `?${queryString}` : ''}`);
+};
+export const fetchItemById = (id) => api.get(`/merchant/items/${id}`);
+export const createItem = (payload) => api.post("/merchant/items", payload);
+export const createItemsBulk = (items) => api.post("/merchant/items/bulk", { items });
+export const updateItem = (id, payload) => api.patch(`/merchant/items/${id}`, payload);
+export const deleteItem = (id, permanent = false) => 
+  api.delete(`/merchant/items/${id}${permanent ? '?permanent=true' : ''}`);
+export const toggleItemAvailability = (id, isAvailable) => 
+  api.patch(`/merchant/items/${id}/availability`, { isAvailable });
+export const reorderItems = (itemIds) => api.patch("/merchant/items/reorder", { itemIds });
 
 export default api;

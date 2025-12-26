@@ -136,6 +136,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import receiptRoutes from "./routes/receiptRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import merchantRoutes from "./routes/merchantRoutes.js";
 
 const app = express();
 
@@ -209,6 +210,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/receipts", receiptRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/merchant", merchantRoutes);
 
 
 // ============ ERROR HANDLING ============
