@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser, setSession } from "../services/api.js";
-import { Store, Briefcase, Lock, Eye, EyeOff } from "lucide-react";
+import { Store, Briefcase, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 
 const MerchantLogin = () => {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ const MerchantLogin = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [roleMismatch, setRoleMismatch] = useState(null); // { actualRole, message }
 
   // 👁️ VISIBILITY STATE
   const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,7 @@ const MerchantLogin = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setRoleMismatch(null);
     try {
       const { data } = await loginUser({ email, password, role: "merchant" });
       // Use new token storage with accessToken and refreshToken
@@ -31,7 +33,15 @@ const MerchantLogin = () => {
       // Always go to overview - MerchantDashboard will handle onboarding redirect
       navigate('/merchant/overview');
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      const responseData = err.response?.data;
+      if (responseData?.code === "ROLE_MISMATCH") {
+        setRoleMismatch({
+          actualRole: responseData.actualRole,
+          message: responseData.message,
+        });
+      } else {
+        setError(responseData?.message || "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -72,6 +82,22 @@ const MerchantLogin = () => {
 
           <form onSubmit={handleLogin} className="space-y-5">
             {error && <div className="text-sm text-red-600">{error}</div>}
+            
+            {/* Role Mismatch Banner */}
+            {roleMismatch && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <p className="text-sm text-emerald-800 font-medium mb-3">
+                  {roleMismatch.message}
+                </p>
+                <Link
+                  to="/customer-login"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Go to Customer Login
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+            )}
             
             {/* Business Email Field */}
             <div>

@@ -285,13 +285,25 @@ export const login = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     const Model = role === "merchant" ? Merchant : User;
+    const OtherModel = role === "merchant" ? User : Merchant;
 
     // Include password + refresh fields for auth checks
     const account = await Model.findOne({ email: normalizedEmail })
       .select("+password +refreshToken +refreshTokenExpiry +tokenVersion");
 
-    // Intentionally vague to avoid user enumeration
+    // If not found in expected model, check if account exists in the other model
     if (!account) {
+      const otherAccount = await OtherModel.findOne({ email: normalizedEmail }).select("_id");
+      if (otherAccount) {
+        // Account exists but in the wrong role collection
+        const actualRole = role === "merchant" ? "customer" : "merchant";
+        return res.status(403).json({
+          message: `This email is registered as a ${actualRole}. Please use the ${actualRole} login.`,
+          code: "ROLE_MISMATCH",
+          actualRole,
+        });
+      }
+      // No account in either collection
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
