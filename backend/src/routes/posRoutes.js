@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { protect, requireRole } from "../middleware/authMiddleware.js";
+import { protect, requireRole, optionalAuth } from "../middleware/authMiddleware.js";
 import {
   createBill,
   confirmPayment,
@@ -33,7 +33,8 @@ const router = Router();
 // For customer payment flow
 // ==========================================
 router.get("/public/bills/:billId", getPublicBill);
-router.post("/public/bills/:billId/select-payment", selectPaymentMethod);
+// optionalAuth: anonymous for cash/upi, but Khata binds to the authenticated customer (never a body-supplied id)
+router.post("/public/bills/:billId/select-payment", optionalAuth, selectPaymentMethod);
 
 // ==========================================
 // CUSTOMER ROUTES (Customer Auth Required)

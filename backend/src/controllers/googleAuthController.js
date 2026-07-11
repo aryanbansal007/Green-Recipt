@@ -78,12 +78,16 @@ const getClearRefreshCookieOptions = (req) => {
 };
 
 // Generate access token
+// Must include tokenVersion so it matches the email-auth token shape and passes the
+// revocation check in authMiddleware.protect (otherwise, after any tokenVersion bump,
+// freshly-issued Google tokens would be rejected as invalidated).
 const generateAccessToken = (account) => {
   return jwt.sign(
     {
       id: account._id,
       email: account.email,
       role: account.role,
+      tokenVersion: account.tokenVersion || 0,
     },
     JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRES_IN }

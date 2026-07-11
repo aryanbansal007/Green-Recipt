@@ -9,11 +9,9 @@ pnpm-debug.log*
 backend/dist
 frontend/dist
 
-# Env files
+# Env files (real secrets are ignored; .env.example templates are committed)
 .env
 backend/.env
-backend/.env.example
-frontend/.env.example
 frontend/.env
 
 # Editor

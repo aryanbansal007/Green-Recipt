@@ -95,7 +95,7 @@ app.use("/api/merchant", merchantRoutes);
 app.use("/api/bills", billRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/pos", posRoutes);
-app.use("/api/payments", paymentRoutes); // Cashfree payment gateway routes
+app.use("/api/payments", paymentRoutes); // Razorpay payment gateway routes
 
 // Start reminder scheduler after routes are set up (opt-in for production)
 if (String(process.env.RUN_SCHEDULER || "").toLowerCase() === "true") {

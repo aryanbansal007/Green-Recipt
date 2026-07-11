@@ -25,9 +25,10 @@ const router = Router();
  * SECURITY NOTES:
  * - create-order endpoint is PUBLIC (no auth) since customers scanning QR aren't logged in
  * - However, it only creates orders for existing bills (which were created by authenticated merchants)
- * - verify endpoint validates Razorpay signature using HMAC-SHA256
+ * - verify endpoint validates Razorpay signature using HMAC-SHA256 and finalizes the bill
  * - Webhook endpoint uses raw body parser for signature verification
- * - Payment confirmation requires BOTH signature verification AND webhook
+ * - Either a verified signature OR the webhook finalizes the bill; receipt creation is
+ *   idempotent (unique billId) so whichever arrives second is a no-op
  */
 
 // ==========================================

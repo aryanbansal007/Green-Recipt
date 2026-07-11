@@ -19,7 +19,12 @@ const JWT_SECRET = process.env.JWT_SECRET;
 let REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
 // Token config
-const ACCESS_TOKEN_EXPIRES_IN = "24h";
+// Access tokens are intentionally short-lived. Because "logout-all"/password-reset
+// revoke sessions by bumping tokenVersion, the access token must expire quickly so a
+// revoked-but-unexpired token can't be used for long. The middleware also checks
+// tokenVersion on every request (see authMiddleware.protect) for immediate revocation.
+const ACCESS_TOKEN_EXPIRES_IN = "15m";
+const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 15 * 60;
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 90;
 const REFRESH_TOKEN_EXPIRES_IN_MS = REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1000;
 
@@ -725,7 +730,7 @@ export const login = async (req, res) => {
 
     res.json({
       accessToken,
-      expiresIn: 24 * 60 * 60, // 24 hours in seconds
+      expiresIn: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
       refreshExpiresIn: REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60, // 90 days in seconds
       role: account.role,
       user:
@@ -1082,7 +1087,7 @@ export const refreshAccessToken = async (req, res) => {
 
     res.json({
       accessToken: newAccessToken,
-      expiresIn: 24 * 60 * 60, // 24 hours in seconds
+      expiresIn: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
       refreshExpiresIn: REFRESH_TOKEN_EXPIRES_IN_DAYS * 24 * 60 * 60,
       role: account.role,
     });

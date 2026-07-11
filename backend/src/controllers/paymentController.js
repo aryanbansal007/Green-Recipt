@@ -263,7 +263,17 @@ export const verifyRazorpayPayment = async (req, res) => {
         code: "MISSING_FIELDS"
       });
     }
-    
+
+    // Fail loudly if the signing secret is missing, rather than throwing inside createHmac.
+    if (!RAZORPAY_KEY_SECRET) {
+      console.error("[Razorpay] RAZORPAY_KEY_SECRET is not configured");
+      return res.status(500).json({
+        success: false,
+        message: "Payment gateway not configured",
+        code: "GATEWAY_NOT_CONFIGURED",
+      });
+    }
+
     console.log("[Razorpay] Verifying payment:", {
       order_id: razorpay_order_id,
       payment_id: razorpay_payment_id,
@@ -306,19 +316,31 @@ export const verifyRazorpayPayment = async (req, res) => {
       });
     }
     
-    // Store verified payment details (do NOT mark PAID here)
+    // Store verified payment details.
     bill.razorpayPaymentId = razorpay_payment_id;
     bill.razorpaySignature = razorpay_signature;
     bill.razorpayOrderStatus = "paid";
+
+    // A valid signature is cryptographic proof the payment succeeded, so finalize here
+    // rather than waiting for the webhook. The webhook remains a source of truth too, but
+    // finalizing on verify guarantees the receipt isn't lost if the webhook is delayed or
+    // never arrives (e.g. misconfigured/unregistered webhook). finalizeBillAndCreateReceipt
+    // is idempotent (unique billId), so a later webhook is a harmless no-op.
+    if (bill.status !== "PAID") {
+      bill.status = "PAID";
+      bill.paidAt = bill.paidAt || new Date();
+    }
     await bill.save();
-    
-    console.log("[Razorpay] Payment verified, bill marked PAID:", bill._id);
-    
+
+    const receipt = await finalizeBillAndCreateReceipt(bill._id, "razorpay-verify");
+
+    console.log("[Razorpay] Payment verified and bill marked PAID:", bill._id);
+
     res.json({
       success: true,
       message: "Payment verified successfully",
       billId: bill._id,
-      receiptId: bill.receiptId || null,
+      receiptId: receipt?._id || bill.receiptId || null,
     });
     
   } catch (error) {
@@ -363,12 +385,19 @@ export const handleRazorpayWebhook = async (req, res) => {
     
     // Extract signature from headers
     const signature = req.headers["x-razorpay-signature"];
-    
+
     if (!signature) {
       console.error("[Razorpay Webhook] Missing signature header");
       return res.status(400).json({ message: "Missing webhook signature" });
     }
-    
+
+    // Guard against missing secret. Return 500 (not 200) so the misconfiguration is visible
+    // and Razorpay retries once it's fixed, instead of silently marking the event delivered.
+    if (!RAZORPAY_WEBHOOK_SECRET) {
+      console.error("[Razorpay Webhook] RAZORPAY_WEBHOOK_SECRET is not configured");
+      return res.status(500).json({ message: "Webhook secret not configured" });
+    }
+
     // Verify webhook signature
     // HMAC-SHA256(raw_body, webhook_secret)
     const expectedSignature = crypto
@@ -460,8 +489,10 @@ export const handleRazorpayWebhook = async (req, res) => {
     
   } catch (error) {
     console.error("[Razorpay Webhook] Error:", error);
-    // Return 200 even on error to prevent infinite retries
-    res.status(200).json({ message: "Error logged" });
+    // Return 500 so Razorpay retries. The signature was already verified above, so reaching
+    // here means a transient/processing failure (e.g. DB error) that a retry can recover —
+    // preferable to a 200 that silently drops a real payment event.
+    res.status(500).json({ message: "Webhook processing failed" });
   }
 };
 
@@ -505,20 +536,6 @@ export const getPaymentStatus = async (req, res) => {
   } catch (error) {
     console.error("[Payment Status] Error:", error);
     res.status(500).json({ message: "Failed to get payment status" });
-  }
-};
-
-/**
- * Helper: Generate receipt from a paid bill
- * Called after payment is verified (via callback or webhook)
- */
-const generateReceiptFromBill = async (bill) => {
-  try {
-    return await finalizeBillAndCreateReceipt(bill._id, "razorpay-webhook");
-    
-  } catch (error) {
-    console.error("[Receipt] Failed to generate receipt:", error);
-    throw error;
   }
 };
 

@@ -346,10 +346,14 @@ export const getBills = async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
 
     const query = { merchantId };
-    
+
     if (status) {
       query.status = status.toUpperCase();
     }
+
+    // Expire stale bills in a single indexed updateMany BEFORE querying, so the returned
+    // list already reflects correct statuses. Avoids the previous per-document save() loop.
+    await POSBill.expireOldBills();
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -361,12 +365,6 @@ export const getBills = async (req, res) => {
         .populate("receiptId", "total status paidAt"),
       POSBill.countDocuments(query),
     ]);
-
-    // Check and expire awaiting bills
-    const awaitingBills = bills.filter(b => b.status === "AWAITING_PAYMENT");
-    for (const bill of awaitingBills) {
-      await bill.checkAndExpire();
-    }
 
     res.json({
       bills: bills.map(bill => ({
@@ -586,7 +584,13 @@ export const getPublicBill = async (req, res) => {
 export const selectPaymentMethod = async (req, res) => {
   try {
     const { billId } = req.params;
-    const { method, customerName, customerPhone, customerId } = req.body;
+    const { method, customerName, customerPhone } = req.body;
+
+    // SECURITY: never trust a customerId from the (public) request body. Khata attaches a
+    // pending debt to an account, so it must be bound to the authenticated customer only.
+    // req.user is set by optionalAuth when a valid, non-revoked customer token is present.
+    const authedCustomerId =
+      req.user && req.user.role === "customer" ? req.user.id : null;
 
     // Validate method - now includes 'other' and 'khata' options
     if (!method || !["cash", "upi", "other", "khata"].includes(method)) {
@@ -619,9 +623,9 @@ export const selectPaymentMethod = async (req, res) => {
 
     // Handle Khata (Pay Later) - mark as pending
     if (method === 'khata') {
-      // Khata requires customer to be logged in
-      if (!customerId) {
-        return res.status(400).json({ 
+      // Khata requires customer to be logged in (identity comes from the token, not the body)
+      if (!authedCustomerId) {
+        return res.status(401).json({
           message: "Please login to use Pay Later (Khata)",
           code: "LOGIN_REQUIRED"
         });
@@ -653,7 +657,7 @@ export const selectPaymentMethod = async (req, res) => {
       bill.status = 'PENDING_KHATA'; // Explicit status for Khata
       bill.paymentMethod = 'khata'; // Explicit method
       bill.customerSelected = true;
-      bill.customerId = customerId; // Link customer to bill for later confirmation & reminders
+      bill.customerId = authedCustomerId; // Bind to the authenticated customer (from token)
       if (customerName) bill.customerName = customerName.trim();
       if (customerPhone) bill.customerPhone = customerPhone.trim();
       await bill.save();
